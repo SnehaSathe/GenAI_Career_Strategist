@@ -1,61 +1,61 @@
-from langchain_core.prompts import PromptTemplate
-from langchain_community.llms import Ollama
-from langchain_core.output_parsers import StrOutputParser
-from resume_parser import extract_text_from_pdf,clean_text
-import ast
-import subprocess
+import fitz
+import requests
+import json
+import streamlit as st
 
+@st.cache_data
+def extract_text_from_pdf(file):
+    pdf_document = fitz.open(stream=file.read(),filetype="pdf")
+    text = ""
+    for page in pdf_document:
+        text += page.get_text()
+    return text.strip()
 
-def get_llm_skill_extractor(model="mistral"):
-    print(f"🔁 Using LLM model: {model}")
-    llm = Ollama(model=model)
+@st.cache_data(show_spinner=False)
+def ollama_generate(model, prompt):
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={"model": model, "prompt": prompt}
+    )
+    return response.json().get("response", "")
 
-    template = """You are an AI assistant that extracts only technical skills.
+@st.cache_data(show_spinner=False)
+def extract_skills_cached(resume_text, jd_text, model_choice):
+    """
+    Extract skills separately for Resume and JD.
+    Always returns: (resume_skills_list, jd_skills_list)
+    """
+    prompt = f"""
+    Extract only technical skills separately from the given resume and job description.
+    Return output in strict JSON format like this:
 
-From the following resume, extract all technical skills: programming languages, frameworks, libraries, tools, platforms (e.g., WordPress, Excel), and development environments.
+    {{
+        "resume_skills": ["Skill1", "Skill2"],
+        "jd_skills": ["SkillA", "SkillB"]
+    }}
 
-❌ Do not include job titles, roles, sentences, categories, or notes.  
-✅ Only return a clean Python list like: ["Python", "Excel", "Scikit-learn", "Power BI", "WordPress"]
+    Resume:
+    {resume_text}
 
-Resume:
-{text}
+    Job Description:
+    {jd_text}
+    """
 
-Output:
-"""
-    prompt = PromptTemplate.from_template(template)
-    return prompt | llm | StrOutputParser()
+    raw_result = use_groq(prompt, model_choice)
+    if not raw_result:
+        raw_result = use_ollama(prompt)
 
-def safe_parse_skill_list(llm_output):
+    # Default empty lists
+    resume_skills, jd_skills = [], []
+
+    # Try parsing JSON
     try:
-        line = llm_output.strip().split("\n")[0]
-        skills = ast.literal_eval(line)
-        return [skill.strip() for skill in skills if isinstance(skill, str)]
-    except:
-        return []
+        import json
+        data = json.loads(raw_result.strip())
+        if isinstance(data, dict):
+            resume_skills = data.get("resume_skills", [])
+            jd_skills = data.get("jd_skills", [])
+    except Exception:
+        pass  # keep them as empty lists if parsing fails
 
-def extract_skills_from_resume(uploaded_file, model="mistral"):
-    try:
-        raw_text = extract_text_from_pdf(uploaded_file)
-        cleaned = clean_text(raw_text)
-        chain = get_llm_skill_extractor(model=model)
-        llm_output = chain.invoke({"text": cleaned})
-        skills = safe_parse_skill_list(llm_output)
-
-        if not skills:
-            print("⚠️ Warning: No skills extracted. LLM Output:\n", llm_output)
-        return skills
-    except Exception as e:
-        print(f"❌ Error during skill extraction: {e}")
-        return []
-
-def is_ollama_model_installed(model_name):
-    try:
-        result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
-        available_models = [line.split()[0].strip() for line in result.stdout.splitlines()[1:] if line]
-        
-        # Fix: Allow partial match like "mistral" in "mistral:latest"
-        return any(model.startswith(model_name) for model in available_models)
-
-    except Exception as e:
-        print(f"❌ Error checking Ollama model: {e}")
-        return False
+    return resume_skills, jd_skills
