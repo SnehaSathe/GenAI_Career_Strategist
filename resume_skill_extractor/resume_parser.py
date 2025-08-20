@@ -1,8 +1,21 @@
+import os
 import fitz  # PyMuPDF
-def extract_text_from_pdf(file):
-    with fitz.open(stream=file.read(), filetype="pdf") as doc:
-        return " ".join(page.get_text() for page in doc)
+import re
+import spacy
+import requests
+import json
 
-def clean_text(text, max_chars=3000):
-    cleaned = " ".join(text.strip().split())
-    return cleaned[:max_chars]
+# Load spaCy (optional, can skip for speed)
+nlp = spacy.load("en_core_web_sm")
+
+# --- PDF Extraction ---
+@st.cache_data
+def extract_text_from_pdf_cached(file_bytes):
+    pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
+    text = ""
+    for page in pdf_document:
+        text += page.get_text()
+    return text.strip()
+
+def clean_text(text):
+    return " ".join(text.strip().split())
