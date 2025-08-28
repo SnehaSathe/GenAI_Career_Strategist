@@ -3,7 +3,12 @@ import fitz  # PyMuPDF
 import os
 from skill_extractor import extract_skills_cached
 from resume_parser import extract_text_from_pdf_cached
+import streamlit as st
 
+# Get API key safely
+groq_api_key = st.secrets["GROQ_API_KEY"]
+
+st.write("Groq Key Loaded ✅")  
 # ----------------- CONFIG -----------------
 st.set_page_config(page_title="🧠 Smart Resume Skill Extractor", page_icon="🧠", layout="wide")
 
