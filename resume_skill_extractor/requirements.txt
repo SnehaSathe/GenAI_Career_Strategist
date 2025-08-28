@@ -1,4 +1,13 @@
 streamlit
-PyMuPDF
-langchain
+pymupdf
+requests
+spacy
+keybert
+langchain>=0.2.0
 langchain-community
+langchain-ollama
+groq
+pandas
+
+# spaCy English model
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
