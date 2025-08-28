@@ -22,7 +22,7 @@ This project is a mini GenAI app that extracts **only technical skills** (like p
 
 ## 📸 Screenshot
 
-<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/resume_skill_extractor/screenshot.png?raw=true" width="700"/>
+<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/resume_skill_extractor/resume_skill_extractor.png" width="700"/>
 
 
 
