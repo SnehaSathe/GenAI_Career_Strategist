@@ -1,0 +1,27 @@
+# ======================
+# Main Project: GENAI Career Strategist
+# Dependencies combined from all mini projects
+# ======================
+
+# App Framework
+streamlit
+
+# PDF Parsing
+pymupdf
+
+# NLP & Embeddings
+spacy
+keybert
+scikit-learn
+sentence-transformers
+
+# LLM Orchestration
+langchain>=0.2.0
+langchain-community
+langchain-ollama
+groq
+
+# Utilities
+pandas
+numpy
+python-dotenv
