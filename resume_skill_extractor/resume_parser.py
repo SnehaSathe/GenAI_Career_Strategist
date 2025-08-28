@@ -4,6 +4,7 @@ import re
 import spacy
 import requests
 import json
+import streamlit as st
 
 # Load spaCy (optional, can skip for speed)
 nlp = spacy.load("en_core_web_sm")
