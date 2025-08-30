@@ -6,7 +6,10 @@ import streamlit as st
 from langchain_community.llms import Ollama
 
 # ---------------- CONFIG ----------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+groq_api_key = (
+    os.getenv("GROQ_API_KEY")   # first check environment variable
+    or st.secrets.get("GROQ_API_KEY")  # fallback to secrets.toml
+)
 OLLAMA_MODEL = "mistral:latest"
 
 # ---------------- HELPERS ----------------
