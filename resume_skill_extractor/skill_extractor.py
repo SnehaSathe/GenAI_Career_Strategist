@@ -25,42 +25,36 @@ def use_ollama(prompt: str) -> str:
     return llm.invoke(prompt)
 
 
-def use_groq(prompt: str, model_choice: str) -> str | None:
-    """Run prompt via Groq API. Returns None if fails."""
-    if not GROQ_API_KEY:
+def use_groq(prompt, model_choice, api_key):
+    import requests
+
+    if not api_key:
         return None
 
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    data = {
-        "model": model_choice,
-        "messages": [
-            {"role": "system", "content": "Extract only technical skills from text, no soft skills or extra words."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.0,
-        "max_tokens": 256
-    }
 
-    try:
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=20
-        )
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        st.warning(f"⚠️ Groq unavailable, using Ollama instead. ({e})")
-        return None
+    # Example POST request to Groq
+    response = requests.post(
+        "https://api.groq.com/v1/chat/completions",
+        headers=headers,
+        json={
+            "model": model_choice,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+    )
+
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"]
+    return None
+
 
 
 # ---------------- MAIN EXTRACTION ----------------
 @st.cache_data(show_spinner=False)
-def extract_skills_cached(resume_text: str, jd_text: str, model_choice: str) -> tuple[list[str], list[str]]:
+def extract_skills_cached(resume_text: str, jd_text: str,groq_api_key, model_choice: str) -> tuple[list[str], list[str]]:
     """
     Extract skills separately for Resume and JD.
     Always returns: (resume_skills_list, jd_skills_list).
@@ -84,7 +78,7 @@ Job Description:
 {jd_text}
 """
 
-    raw_result = use_groq(prompt, model_choice) or use_ollama(prompt)
+    raw_result = use_groq(prompt, model_choice, groq_api_key) or use_ollama(prompt)
 
     # Defaults
     resume_skills, jd_skills = [], []
