@@ -1,5 +1,6 @@
 import os
 import json
+import socket
 import requests
 import fitz  # PyMuPDF
 import streamlit as st
@@ -12,7 +13,9 @@ groq_api_key = (
 )
 OLLAMA_MODEL = "mistral:latest"
 
-def is_localhost():
+
+# ---------------- ENV DETECTION ----------------
+def is_local_env():
     """Detect if running locally (for Ollama fallback)."""
     try:
         host = socket.gethostname()
@@ -22,6 +25,7 @@ def is_localhost():
         return False
 
 
+# ---------------- OLLAMA ----------------
 @st.cache_resource
 def get_ollama_client():
     """Initialize Ollama client (cached)."""
@@ -34,9 +38,8 @@ def use_ollama(prompt: str) -> str:
     return llm.invoke(prompt)
 
 
+# ---------------- GROQ ----------------
 def use_groq(prompt, model_choice, api_key):
-    import requests
-
     if not api_key:
         return None
 
@@ -60,9 +63,12 @@ def use_groq(prompt, model_choice, api_key):
     # Debugging message (optional)
     st.error(f"Groq API error {response.status_code}: {response.text}")
     return None
+
+
 # ---------------- MAIN EXTRACTION ----------------
 @st.cache_data(show_spinner=False)
-def extract_skills_cached(resume_text: str, jd_text: str,groq_api_key, model_choice: str) -> tuple[list[str], list[str]]:
+def extract_skills_cached(resume_text: str, jd_text: str,
+                          groq_api_key, model_choice: str) -> tuple[list[str], list[str]]:
     """
     Extract skills separately for Resume and JD.
     Always returns: (resume_skills_list, jd_skills_list).
@@ -86,13 +92,26 @@ Job Description:
 {jd_text}
 """
 
-    raw_result = use_groq(prompt, model_choice, groq_api_key) or use_ollama(prompt)
+    raw_result = None
+
+    if is_local_env():
+        # Local → prefer Ollama, fallback to Groq
+        try:
+            raw_result = use_ollama(prompt)
+        except Exception:
+            raw_result = use_groq(prompt, model_choice, groq_api_key)
+    else:
+        # Cloud → always Groq
+        raw_result = use_groq(prompt, model_choice, groq_api_key)
 
     # Defaults
     resume_skills, jd_skills = [], []
 
     # Parse JSON safely
     try:
+        if not raw_result:
+            return [], []
+
         cleaned = raw_result.strip()
 
         # Remove ```json code blocks if present
