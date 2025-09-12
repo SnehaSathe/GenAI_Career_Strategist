@@ -12,7 +12,16 @@ groq_api_key = (
 )
 OLLAMA_MODEL = "mistral:latest"
 
-# ---------------- HELPERS ----------------
+def is_localhost():
+    """Detect if running locally (for Ollama fallback)."""
+    try:
+        host = socket.gethostname()
+        ip = socket.gethostbyname(host)
+        return ip.startswith("127.") or ip == "localhost"
+    except:
+        return False
+
+
 @st.cache_resource
 def get_ollama_client():
     """Initialize Ollama client (cached)."""
@@ -36,9 +45,8 @@ def use_groq(prompt, model_choice, api_key):
         "Content-Type": "application/json"
     }
 
-    # Example POST request to Groq
     response = requests.post(
-        "https://api.groq.com/v1/chat/completions",
+        "https://api.groq.com/openai/v1/chat/completions",
         headers=headers,
         json={
             "model": model_choice,
@@ -48,10 +56,10 @@ def use_groq(prompt, model_choice, api_key):
 
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
+
+    # Debugging message (optional)
+    st.error(f"Groq API error {response.status_code}: {response.text}")
     return None
-
-
-
 # ---------------- MAIN EXTRACTION ----------------
 @st.cache_data(show_spinner=False)
 def extract_skills_cached(resume_text: str, jd_text: str,groq_api_key, model_choice: str) -> tuple[list[str], list[str]]:

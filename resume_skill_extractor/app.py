@@ -138,8 +138,15 @@ st.markdown(
 # ----------------- MODEL CHOICE -----------------
 model_choice = st.selectbox(
     "🔎 Select Groq Model (used when online)",
-    ["llama3-8b-8192", "mixtral-8x7b-32768"]
+    [
+        "llama-3.1-8b-instant",
+        "llama-3.1-70b-versatile",
+        "mixtral-8x7b-32768",
+        "gemma-7b-it",
+    ],
+    index=0
 )
+
 
 # ----------------- INPUT SECTION -----------------
 col1, col2 = st.columns(2)
