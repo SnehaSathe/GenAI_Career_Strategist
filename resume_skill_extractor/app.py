@@ -177,7 +177,8 @@ if st.button("🚀 Extract Skills", type="primary", use_container_width=True):
         st.warning("⚠ Please provide both Resume and Job Description.")
     else:
         with st.spinner("⏳ Extracting skills... Please wait."):
-            resume_skills, jd_skills = extract_skills_cached(resume_text, jd_text, model_choice)
+            resume_skills, jd_skills = extract_skills_cached(resume_text, jd_text, groq_api_key, model_choice)
+
 
         st.success("✅ Skills extracted successfully!")
 
