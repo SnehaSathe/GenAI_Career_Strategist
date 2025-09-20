@@ -25,3 +25,5 @@ groq
 pandas
 numpy
 python-dotenv
+fpdf2
+langchain-groq
