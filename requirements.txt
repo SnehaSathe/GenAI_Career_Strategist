@@ -27,3 +27,4 @@ numpy
 python-dotenv
 fpdf2
 langchain-groq
+python-docx
