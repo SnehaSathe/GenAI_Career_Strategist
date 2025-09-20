@@ -2,8 +2,13 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import streamlit as st
+from langchain_groq import ChatGroq
+from langchain.prompts import PromptTemplate
+from fpdf import FPDF
 import sys 
-
+from io import BytesIO
+import base64
+from PIL import Image
 
 # Ensure parent directory is in sys.path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -13,35 +18,76 @@ if PARENT_DIR not in sys.path:
 
 # Try relative import first (works for package/module run)
 try:
-    from .resume_parser import extract_text_from_pdf_cached, extract_text, extract_text_from_docx_cached
+    from .resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached,extract_text
     from .skill_extractor import extract_skills_cached
 except ImportError:
     # Fallback to absolute import (works for script run)
-    from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached,extract_text
+    from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached , extract_text_from_docx_cached,extract_text
     from resume_skill_extractor.skill_extractor import extract_skills_cached
     
-
-
-
-# Get API key safely
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-st.write("Groq Key Loaded ✅")  
-
 
 # ----------------- CONFIG -----------------
 st.set_page_config(page_title="🧠 Smart Resume Skill Extractor", page_icon="🧠", layout="wide")
 
 # ----------------- HEADER -----------------
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+image_path = os.path.join(BASE_DIR, "logo.png")  # logo in main folder
+
+# --- Read image in binary and encode as base64 ---
+with open(image_path, "rb") as f:
+    data = f.read()
+
+encoded = base64.b64encode(data).decode()
+
+# Embed in HTML
 st.markdown(
-    """
-    <div style="text-align:center; padding:20px; background:#f8f9fa; border-radius:10px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1); margin-bottom:20px;">
-        <h1>🧠 Smart Resume Skill Extractor</h1>
-        <p style="font-size:18px;">Upload your Resume & Job Description to extract skills instantly.</p>
+    f"""
+    <div style="
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        background:#f8f9fa;
+        border-radius:10px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        margin-bottom:20px;
+    ">
+        <img src="data:image/png;base64,{encoded}" style='width:100px; height:auto; margin-right:20px;border-radius:10px'/>
+        <div style='text-align:left;'>
+            <h1 style='margin:0;'>🧠 Smart Resume Skill Extractor</h1>
+            <p style='font-size:16px; margin:0;'>Upload your Resume & Job Description to extract skills instantly.</p>
+        </div>
     </div>
     """,
     unsafe_allow_html=True
 )
+
+
+# Get API key safely
+groq_api_key = st.secrets["GROQ_API_KEY"]
+
+# --- Initialize LLM ---
+llm = ChatGroq(
+    api_key=st.secrets["GROQ_API_KEY"],
+    model_name="llama-3.1-8b-instant"  # or whatever model you prefer
+)
+
+# --- Initialize LLM safely (llm will be None if we can't init) ---
+
+if groq_api_key:
+    try:
+        # Example: try to initialize a Groq/LangChain LLM client if you have the lib.
+        # Replace/import with whatever client you use in your environment.
+        # If you don't have a client, keep llm = None and the regex will be used.
+        from langchain_groq import ChatGroq  # adjust to actual package you use (may be different)
+        llm = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-8b-instant")
+        
+    except Exception as e:
+        # If langchain_groq is not installed or initialization fails, llm stays None
+        st.warning(f"LLM init failed or client not installed: {e}. Falling back to regex extractor.")
+        llm = None
+else:
+    st.info("No GROQ_API_KEY found — using regex fallback for name extraction.")
 
 #### ---------------------- Custom CSS--------------------------
 st.markdown(
@@ -114,7 +160,7 @@ st.markdown(
         border: 1px solid #6c757d !important;
         border-radius: 12px !important;
         background-color: #ffffff !important;
-        padding: 8px !important;
+        padding: 5px !important;
         box-shadow: 0px 4px 12px rgba(0,0,0,0.15) !important;
     }
 
@@ -150,23 +196,37 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+st.markdown(
+    """
+    <style>
+    /* Hide default collapse icon */
+    button[title="Collapse"]::before {
+        content: '\\2699';  /* Unicode for gear ⚙ */
+        font-size: 20px;
+    }
 
-
+    /* Optional: increase button size */
+    button[title="Collapse"] {
+        width: 40px;
+        height: 40px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
 
 # ----------------- MODEL CHOICE -----------------
-model_choice = st.selectbox(
-    "🔎 Select Groq Model (used when online)",
-    [
-        "llama-3.1-8b-instant",
-        "llama-3.1-70b-versatile",
-        "mixtral-8x7b-32768",
-        "gemma-7b-it",
-    ],
-    index=0
-)
 
+model_choice = st.selectbox(
+        "🔍 Select Groq Model (used when online)",
+        ["llama-3.1-8b-instant","mixtral-8x7b-32768"],
+    index=0,  key="groq_model_select"
+    )
+    
+
+    
 
 # ----------------- INPUT SECTION -----------------
 col1, col2 = st.columns(2)
@@ -185,7 +245,7 @@ with col2:
     jd_text_input = st.text_area(
         "Paste your Job Description below:",
         height=200,
-        key="jd_text_area"
+        key="jd_uploader_main"
     )
 
 # ----------------- READ FILES -----------------
@@ -201,6 +261,9 @@ if resume_file:
 
 if jd_text_input and jd_text_input.strip():
     jd_text = jd_text_input.strip()
+
+
+
 
 # ----------------- RUN EXTRACTION -----------------
 if st.button("🚀 Extract Skills", type="primary", use_container_width=True):
