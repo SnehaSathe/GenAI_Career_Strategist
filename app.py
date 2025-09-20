@@ -263,27 +263,45 @@ if jd_text_input and jd_text_input.strip():
 
 
 
+import streamlit as st
+from io import BytesIO
 
- ### ------------------------------------JD SKill Gap Analyzer------------------------------------------------------------------               
+# --- Initialize analyzed flag ---
+if "analyzed" not in st.session_state:
+    st.session_state.analyzed = False
 
-if st.button("🚀 Analyze Skills", type="primary", key="skill_gap", use_container_width=True):
+# --- Button row ---
+col1, col2, col3 = st.columns([2, 2, 2])
+
+# ----------------- ANALYZE BUTTON -----------------
+with col1:
+    analyze_clicked = st.button("🚀 Analyze Skills", use_container_width=True)
+
+# ----------------- RESET BUTTON -----------------
+with col2:
+    reset_clicked = st.button("♻ Reset / Clear Data", use_container_width=True)
+
+# ----------------- DOWNLOAD BUTTON PLACEHOLDER -----------------
+with col3:
+    download_placeholder = st.empty()  # placeholder to render download button later
+
+# ================== BUTTON ACTIONS ==================
+
+# ----- ANALYZE SKILLS -----
+if analyze_clicked:
     if not resume_text or not jd_text:
         st.warning("⚠ Please provide both Resume and Job Description.")
     else:
         with st.spinner("⏳ Analyzing skills... Please wait."):
             resume_skills, jd_skills = extract_skills_cached(
-                resume_text, jd_text, 
-                model_choice=model_choice, 
+                resume_text, jd_text,
+                model_choice=model_choice,
                 groq_api_key=groq_api_key
             )
-
-
-
-            # Embed and find matches
             resume_vecs, jd_vecs = embed_skills(resume_skills, jd_skills)
             matches, missing, additional, score = find_matches(resume_skills, jd_skills, resume_vecs, jd_vecs)
-
-            
+        
+            candidate_name = st.session_state.get("candidate_name") or extract_candidate_name(resume_text, llm=llm)
 
         # Save results in session_state
         st.session_state["resume_skills"] = resume_skills
@@ -292,98 +310,70 @@ if st.button("🚀 Analyze Skills", type="primary", key="skill_gap", use_contain
         st.session_state["missing"] = missing
         st.session_state["additional"] = additional
         st.session_state["score"] = score
-        
-            
-        # 🎯 Display results
-        st.subheader("📊 Skill Gap Analysis Results")
+        st.session_state.analyzed = True  # ✅ enables download button
 
-        # Show overall score
-        st.progress(score / 100.0)
-        st.metric(label="Match Score", value=f"{score}%")
-  
-
-        # ----------------- RESULTS -----------------
-        col1, col2,col3  = st.columns(3)
-
-
-# ✅ Matched Skills
-        with col1:
-            if matches:
-                st.success(f"✅ {len(matches)} Matched Skills")
-                for jd_skill, resume_skill, sim in matches:
-                    st.markdown(f"- **{jd_skill}**")
-            else:
-                st.info("No skills matched.")
-
-        with col2:
-            # ❌ Missing Skills
-            if missing:
-                st.error(f"❌ {len(missing)} Missing Skills")
-                st.markdown(
-                    " , ".join([f"`{skill}`" for skill in missing])
-                )
-            else:
-                st.success("No missing skills! 🎉")
-
-        with col3:
-            # ❌ additional Skills
-            if additional:
-                st.error(f"➕ {len(additional)} Additional Skills")
-                st.markdown(
-                    " , ".join([f"`{skill}`" for skill in additional])
-                )
-            else:
-                st.success("No Additional skills! 🎉")        
-            
-
-
-
-# --- Download report button ---
-if "resume_skills" in st.session_state:
-    if st.button("📥 Download Report"):
-
-        # Ensure candidate_name exists in session_state
-        if "candidate_name" not in st.session_state:
-            st.session_state.candidate_name = extract_candidate_name(resume_text, llm=llm)
-
-        # Use the CURRENT value from session_state for report
-        candidate_name = st.session_state.candidate_name
-
-        # --- Generate PDF ---
-        pdf = generate_report(
-            candidate_name=candidate_name,
-            matched_skills=st.session_state["matches"],
-            missing_skills=st.session_state["missing"],
-            additional_skills=st.session_state["additional"],
-            jd_skills=st.session_state["jd_skills"],
-            resume_skills=st.session_state["resume_skills"],
-            score=st.session_state["score"],
-            logo_path="logo.png",
-        )
-
-        # --- Create in-memory BytesIO buffer ---
-        from io import BytesIO
-        buffer = BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-
-        # --- Download button ---
-        import streamlit as st
         st.success(f"📊 Analysis for **{candidate_name}**")
-        st.download_button(
-            "⬇ Download PDF Report",
-            data=buffer,
-            file_name=f"{candidate_name}_resume_skill_report.pdf",
-            mime="application/pdf"
-        )
-else:
-    st.info("⚠ Run the analysis first to download the report.")
 
-
-
-
-# ----------------- RESET ----------------- 
-if st.button("♻ Reset / Clear Data", use_container_width=True): 
-    st.cache_data.clear() 
-    st.session_state.clear() 
+# ----- RESET / CLEAR -----
+if reset_clicked:
+    st.cache_data.clear()
+    st.session_state.clear()
     st.rerun()
+
+# ----- DISPLAY RESULTS IMMEDIATELY -----
+if st.session_state.analyzed:
+    col1_res, col2_res, col3_res = st.columns(3)
+    
+    # ✅ Matched Skills
+    with col1_res:
+        if st.session_state["matches"]:
+            st.success(f"✅ {len(st.session_state['matches'])} Matched Skills")
+            for jd_skill, resume_skill, sim in st.session_state["matches"]:
+                st.markdown(f"- **{jd_skill}**")
+        else:
+            st.info("No skills matched.")
+
+    # ❌ Missing Skills
+    with col2_res:
+        if st.session_state["missing"]:
+            st.error(f"❌ {len(st.session_state['missing'])} Missing Skills")
+            st.markdown(", ".join([f"`{skill}`" for skill in st.session_state["missing"]]))
+        else:
+            st.success("No missing skills! 🎉")
+
+    # ➕ Additional Skills
+    with col3_res:
+        if st.session_state["additional"]:
+            st.error(f"➕ {len(st.session_state['additional'])} Additional Skills")
+            st.markdown(", ".join([f"`{skill}`" for skill in st.session_state["additional"]]))
+        else:
+            st.success("No Additional skills! 🎉")
+
+# ----- DOWNLOAD BUTTON -----
+if st.session_state.analyzed:
+    candidate_name = st.session_state.get("candidate_name") or extract_candidate_name(resume_text, llm=llm)
+    pdf = generate_report(
+        candidate_name=candidate_name,
+        matched_skills=st.session_state["matches"],
+        missing_skills=st.session_state["missing"],
+        additional_skills=st.session_state["additional"],
+        jd_skills=st.session_state["jd_skills"],
+        resume_skills=st.session_state["resume_skills"],
+        score=st.session_state["score"],
+        logo_path="logo.png",
+    )
+    buffer = BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+
+    # Render the download button in the placeholder
+    download_placeholder.download_button(
+        "📥 Download Report",
+        data=buffer,
+        file_name=f"{candidate_name}_resume_skill_report.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+else:
+    # Disabled button until analysis
+    download_placeholder.button("📥 Download Report", disabled=True, use_container_width=True)
