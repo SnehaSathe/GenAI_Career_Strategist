@@ -28,3 +28,11 @@ python-dotenv
 fpdf2
 langchain-groq
 python-docx
+
+streamlit
+transformers
+accelerate
+torch
+PyMuPDF
+
+python-docx

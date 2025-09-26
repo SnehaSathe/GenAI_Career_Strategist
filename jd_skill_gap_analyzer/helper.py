@@ -143,7 +143,7 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
 
     return pdf
 
-  # --- Save to buffer or file ---
+# --- Save to buffer or file ---
     if hasattr(output_path, "write"):  # BytesIO
         pdf.output(output_path)
     else:  # string path

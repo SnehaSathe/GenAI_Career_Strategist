@@ -1,7 +1,6 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import os
-import streamlit as st
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from fpdf import FPDF
@@ -9,6 +8,7 @@ import sys
 from io import BytesIO
 import base64
 from PIL import Image
+from transformers import pipeline
 
 # Ensure parent directory is in sys.path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,31 +63,6 @@ st.markdown(
 )
 
 
-# Get API key safely
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-# --- Initialize LLM ---
-llm = ChatGroq(
-    api_key=st.secrets["GROQ_API_KEY"],
-    model_name="llama-3.1-8b-instant"  # or whatever model you prefer
-)
-
-# --- Initialize LLM safely (llm will be None if we can't init) ---
-
-if groq_api_key:
-    try:
-        # Example: try to initialize a Groq/LangChain LLM client if you have the lib.
-        # Replace/import with whatever client you use in your environment.
-        # If you don't have a client, keep llm = None and the regex will be used.
-        from langchain_groq import ChatGroq  # adjust to actual package you use (may be different)
-        llm = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-8b-instant")
-        
-    except Exception as e:
-        # If langchain_groq is not installed or initialization fails, llm stays None
-        st.warning(f"LLM init failed or client not installed: {e}. Falling back to regex extractor.")
-        llm = None
-else:
-    st.info("No GROQ_API_KEY found — using regex fallback for name extraction.")
 
 #### ---------------------- Custom CSS--------------------------
 st.markdown(
@@ -219,12 +194,34 @@ st.markdown(
 
 # ----------------- MODEL CHOICE -----------------
 
+# --- Load Hugging Face Model ---
+@st.cache_resource
+def load_model():
+    return pipeline("ner", model="dslim/bert-base-NER", grouped_entities=True)
+
+ner = load_model()
+
 model_choice = st.selectbox(
-        "🔍 Select Groq Model (used when online)",
-        ["llama-3.1-8b-instant","mixtral-8x7b-32768"],
-    index=0,  key="groq_model_select"
-    )
-    
+    "🔍 Select Model",
+    ["dslim/bert-base-NER"]
+)
+# ----------------- CHECK IF MODEL IS INSTALLED -----------------
+@st.cache_resource
+def check_ollama_model_installed(model_name):
+    try:
+        client = Ollama(model=model_name)
+        # Test a simple prompt to check if model is available
+        client.invoke("Hello")
+        return True
+    except Exception as e:
+        st.warning(f"⚠ Model '{model_name}' is not installed locally or failed to load.\nError: {e}")
+        return False
+
+model_available = check_ollama_model_installed(model_choice)
+
+if not model_available:
+    st.info(f"Please install the model '{model_choice}' locally via Ollama CLI before using it.")
+
 
     
 
@@ -271,7 +268,7 @@ if st.button("🚀 Extract Skills", type="primary", use_container_width=True):
         st.warning("⚠ Please provide both Resume and Job Description.")
     else:
         with st.spinner("⏳ Extracting skills... Please wait."):
-            resume_skills, jd_skills = extract_skills_cached(resume_text, jd_text, groq_api_key, model_choice)
+            resume_skills, jd_skills = extract_skills_cached(resume_text, jd_text,  model_choice)
 
 
         st.success("✅ Skills extracted successfully!")
