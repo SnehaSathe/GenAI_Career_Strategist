@@ -3,24 +3,45 @@
 This module is part of a GenAI app that analyzes the skill gap between a candidate's resume and a job description. It highlights matched, missing, and additional skills, and generates a PDF report.
 
 ✅ Supports PDF & DOCX files
+
 ✅ Uses LLM or Groq embeddings for accurate skill extraction
+
 ✅ Built with LangChain, Streamlit, and PyMuPDF
 
 ## 📌 Features
 
 📄 Upload Resume (PDF/DOCX) and Job Description (PDF/DOCX or text)
+
 🧠 Extract skills from both documents
+
 ⚡ Identify:
-Matched skills
-Missing skills
-Additional skills
-📊 Calculate match score (%)
+
+- Matched skills
+
+- Missing skills
+
+- Additional skills
+
+- 📊 Calculate match score (%)
+
 📥 Generate PDF report with candidate name, logo, and watermark
+
 🖥️ Simple Streamlit UI with interactive buttons
 
 ## 📸 Screenshot
 
-<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/resume_skill_extractor/resume_skill_extractor.png" width="700"/>
+### Home Page
+<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/media/genai%20career%20strategy_ss1.png" width="700"/>
+
+### Analyze Skills
+<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/media/genai%20career%20strategy_ss2.png" width="700"/>
+
+### Save Generated Reports
+<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/media/genai%20career%20strategy_ss3.png" width="700"/>
+
+### Skill Analyzer Report
+<img src="https://github.com/SnehaSathe/GenAI_Career_Strategist/blob/main/media/genai%20results.png" width="700"/>
+
 
 ## 🧰 Tech Stack
 
@@ -89,3 +110,4 @@ Otherwise, you may use it under MIT License.***
 Inspired by real-world GenAI skill analysis problems.
 
 ⭐ Star this repo if it helped you!
+
