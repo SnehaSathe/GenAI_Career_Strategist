@@ -417,16 +417,3 @@ LinkedIn: https://www.linkedin.com/in/snehasathe
 
 ---
 
-
----
-
-If you want next upgrade, I can:
-
-Make a 1-page Architecture Diagram version
-
-Create a portfolio case study version (for recruiters)
-
-Or rewrite this to optimize GitHub SEO so recruiters find it
-
-
-Tell me which direction you want.
