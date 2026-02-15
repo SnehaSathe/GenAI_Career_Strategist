@@ -58,11 +58,14 @@ Modular RAG pipelines
                            │
                         FAISS DB
                            │
-      ┌──────────────────────────────────────┐
+      ┌──────────────────────────────────────┐ 
       │                    │                        │
-  Skill Extraction   JD Gap Analysis      Role Recommendation
+      
+  Skill Extraction    |   JD Gap Analysis      |   Role Recommendation
+     
       │                    │                        │
-      Structured LLM Output (JSON Controlled Prompting)
+      
+     Structured LLM Output (JSON Controlled Prompting)
 
 
 ---
@@ -116,9 +119,9 @@ Context injected into LLM prompt
 
 ### Chunking Strategy:
 
-500-token fixed chunking
+**500-token** fixed chunking
 
-50-token overlap
+**50-token** overlap
 
 Improves recall at slight embedding cost
 
@@ -136,9 +139,9 @@ Hallucination rate comparison (Direct LLM vs RAG)
 
 ### Performance:
 
-Avg Latency: ~1.5–2 seconds
+ __Avg Latency: ~1.5–2 seconds__
 
-Precision improved to ~88% after prompt refinement
+**Precision** improved to **~88%** after prompt refinement
 
 
 
@@ -359,17 +362,29 @@ KeyBERT
 ## 📂 Repository Structure
 
 GenAI_Career_Strategist/
+
 │
+
 ├── modules/
+
 │   ├── resume_skill_extractor/
+
 │   ├── jd_gap_analyzer/
+
 │   ├── job_role_recommender/
+
 │
+
 ├── shared/
+
 │   ├── embeddings.py
+
 │   ├── prompt_templates.py
+
 │
+
 ├── requirements.txt
+
 └── README.md
 
 
