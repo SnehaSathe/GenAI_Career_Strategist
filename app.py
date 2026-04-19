@@ -3,7 +3,6 @@ import sys
 import json
 import base64
 from io import BytesIO
-
 import streamlit as st
 from fpdf import FPDF
 import logging
@@ -130,8 +129,13 @@ if st.button("Analyze"):
             explanation = generate_llm_explanation(
                 score, resume_skills, jd_skills, matches, missing
             )
+            candidate_name = extract_candidate_name(
+    resume_text
+)
 
-            candidate_name = extract_candidate_name(resume_text)
+            if not candidate_name or candidate_name.strip() == "":
+                candidate_name = "Candidate"
+
 
             # ------------------ DISPLAY ------------------
 

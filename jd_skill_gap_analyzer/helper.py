@@ -1,8 +1,9 @@
 import sys
 import os
 from resume_skill_extractor.skill_extractor import extract_skills_cached
+from resume_skill_extractor.app import resume_text, jd_text
+from resume_skill_extractor.resume_parser import extract_candidate_name
 from langchain_community.embeddings import OllamaEmbeddings
-from resume_skill_extractor.resume_parser import extract_candidate_name_llm
 import numpy as np
 import streamlit as st
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -76,30 +77,16 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
     pdf.image(logo_path, x=10, y=8, w=30)
     pdf.set_font("Arial", "B", 16)
     pdf.cell(200, 10, "AI Resume Skill Extractor Report", ln=True, align="C")
-    pdf.ln(10)
+    pdf.ln(20)
 
-    pdf.ln(10)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "AI Explanation", ln=True)
 
-    pdf.set_font("Arial", "B", 10)
-    pdf.multi_cell(0, 8, explanation)
+    pdf.set_font("Arial", "B", size=14)
+    pdf.cell(200, 10, f"Match Score: {score}%", ln=True)
+    pdf.ln(5)
 
     pdf.set_font("Arial", "I", 16)
     pdf.cell(200, 10, f"{candidate_name}", ln=True, align="C")
     pdf.ln(10)
-
-   # 🔹 Add horizontal line separator
-    y = pdf.get_y()
-    pdf.line(10, y, 200, y)   # (x1,y) to (x2,y)
-    pdf.ln(5)
-
-
-
-    pdf.set_font("Times", "B", size=14)
-    pdf.cell(200, 10, f"Match Score: {score}%", ln=True)
-    pdf.ln(5)
-
     # Draw progress bar background (gray)
     bar_x = 10
     bar_y = pdf.get_y()
@@ -114,33 +101,53 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
     filled_width = (score / 100) * bar_width
     pdf.rect(bar_x, bar_y, filled_width, bar_height, "F")
 
-    pdf.ln(15)
+    pdf.ln(10)
 
-    pdf.set_font("Times", "B", 13)
+
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "AI Explanation", ln=True)
+
+    explanation = explanation.replace("**", "")
+
+    pdf.set_font("Arial", "", 10)
+    pdf.multi_cell(0, 8, explanation)
+
+    
+
+   # 🔹 Add horizontal line separator
+    y = pdf.get_y()
+    pdf.line(10, y, 200, y)   # (x1,y) to (x2,y)
+    pdf.ln(5)
+
+
+
+
+    pdf.set_font("Arial", "B", 13)
     pdf.cell(0, 10, "Resume Skills:", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 8, ", ".join(resume_skills))
     pdf.ln(5)
 
-    pdf.set_font("Times", "B", 13)
+    pdf.set_font("Arial", "B", 13)
     pdf.cell(0, 10, "Job Description Skills:", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 8, ", ".join(jd_skills))
     pdf.ln(5)
 
-    pdf.set_font("Times", "B", 13)
+    pdf.set_font("Arial", "B", 13)
     pdf.cell(0, 10, "Matched Skills:", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 8, ", ".join([m[0] for m in matched_skills]))
     pdf.ln(5)
 
-    pdf.set_font("Times", "B", 13)
+    pdf.set_font("Arial", "B", 13)
     pdf.cell(0, 10, "Missing Skills:", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 8, ", ".join(missing_skills) if missing_skills else "None")
     pdf.ln(5)
 
-    pdf.set_font("Times", "B", 13)
+    pdf.set_font("Arial", "B", 13)
     pdf.cell(0, 10, "Additional Skills in Resume:", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 8, ", ".join(additional_skills) if additional_skills else "None")

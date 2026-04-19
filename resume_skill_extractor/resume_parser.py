@@ -105,8 +105,10 @@ Resume text (first 2000 chars):
 
 # --- Fallback: regex / spaCy ---
 def extract_candidate_name_fallback(resume_text: str) -> str:
-    lines = resume_text.splitlines()
-    # Step 1: Top 30 lines regex check
+    if not resume_text:
+        return "Candidate"
+
+    lines = resume_text.splitlines()    # Step 1: Top 30 lines regex check
     for line in lines[:30]:
         ln = line.strip()
         if not ln or any(skip in ln.lower() for skip in ["@", "www", "linkedin", "resume", "cv", "curriculum vitae", "phone", "email"]):
