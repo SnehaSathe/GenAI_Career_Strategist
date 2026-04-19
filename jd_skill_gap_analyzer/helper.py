@@ -1,7 +1,6 @@
 import sys
 import os
 from resume_skill_extractor.skill_extractor import extract_skills_cached
-from resume_skill_extractor.app import resume_text, jd_text
 from langchain_community.embeddings import OllamaEmbeddings
 from resume_skill_extractor.resume_parser import extract_candidate_name_llm
 import numpy as np
@@ -69,9 +68,8 @@ def find_matches(resume_skills, jd_skills, resume_vectors, jd_vectors, threshold
 
 
 
-
 # ----------------- PDF REPORT -----------------
-def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, missing_skills, additional_skills, score, logo_path="logo.png"):
+def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, missing_skills, additional_skills, score, logo_path="logo.png",explanation=None ):
     pdf = FPDF()
     pdf.add_page()
 
@@ -80,6 +78,12 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
     pdf.cell(200, 10, "AI Resume Skill Extractor Report", ln=True, align="C")
     pdf.ln(10)
 
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "AI Explanation", ln=True)
+
+    pdf.set_font("Arial", "", 10)
+    pdf.multi_cell(0, 8, explanation)
 
     pdf.set_font("Times", "I", 16)
     pdf.cell(200, 10, f"{candidate_name}", ln=True, align="C")

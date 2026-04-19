@@ -27,3 +27,6 @@ numpy
 python-dotenv
 fpdf2
 langchain-groq
+docx 
+sentence-transformers
+torch

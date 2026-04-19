@@ -1,0 +1,93 @@
+{
+  "AI Engineer": {
+    "domain": "AI_TECH",
+    "required_skills": [
+      "python",
+      "machine learning",
+      "deep learning",
+      "llm",
+      "nlp",
+      "rag",
+      "api development",
+      "vector databases",
+      "langchain",
+      "model deployment"
+    ],
+    "description": "Designs and builds AI systems using LLMs, APIs, retrieval systems, and intelligent automation."
+  },
+
+  "ML Engineer": {
+    "domain": "AI_TECH",
+    "required_skills": [
+      "python",
+      "machine learning",
+      "tensorflow",
+      "pytorch",
+      "model training",
+      "ml pipelines",
+      "feature engineering",
+      "deployment",
+      "docker"
+    ],
+    "description": "Builds scalable machine learning pipelines, model training workflows, and deployment systems."
+  },
+
+  "Data Scientist": {
+    "domain": "AI_TECH",
+    "required_skills": [
+      "python",
+      "statistics",
+      "data analysis",
+      "machine learning",
+      "sql",
+      "experimentation",
+      "visualization",
+      "pandas",
+      "numpy"
+    ],
+    "description": "Analyzes data, builds statistical models, runs experiments, and generates insights."
+  },
+
+  "Backend Developer": {
+    "domain": "TECH",
+    "required_skills": [
+      "python",
+      "java",
+      "nodejs",
+      "api development",
+      "databases",
+      "sql",
+      "system design",
+      "scalability"
+    ],
+    "description": "Develops APIs, manages databases, and ensures system scalability and reliability."
+  },
+
+  "Business Analyst": {
+    "domain": "NON_TECH",
+    "required_skills": [
+      "excel",
+      "power bi",
+      "tableau",
+      "business analysis",
+      "reporting",
+      "stakeholder management",
+      "data interpretation"
+    ],
+    "description": "Analyzes business data, creates reports, and supports decision-making."
+  },
+
+  "Graphic Designer": {
+    "domain": "NON_TECH",
+    "required_skills": [
+      "photoshop",
+      "illustrator",
+      "figma",
+      "ui",
+      "ux",
+      "branding",
+      "visual design"
+    ],
+    "description": "Creates visual content for digital and print media using design software."
+  }
+}

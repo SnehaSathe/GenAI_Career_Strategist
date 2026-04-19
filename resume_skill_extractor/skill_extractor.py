@@ -67,8 +67,12 @@ def use_groq(prompt, model_choice, api_key):
 
 # ---------------- MAIN EXTRACTION ----------------
 @st.cache_data(show_spinner=False)
-def extract_skills_cached(resume_text: str, jd_text: str,
-                          groq_api_key, model_choice: str) -> tuple[list[str], list[str]]:
+def extract_skills_cached(
+    resume_text: str,
+    jd_text: str,
+    model_choice: str,
+    groq_api_key=None
+) -> tuple[list[str], list[str]]:
     """
     Extract skills separately for Resume and JD.
     Always returns: (resume_skills_list, jd_skills_list).
