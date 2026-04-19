@@ -74,7 +74,7 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
     pdf.add_page()
 
     pdf.image(logo_path, x=10, y=8, w=30)
-    pdf.set_font("Times", "B", 16)
+    pdf.set_font("Arial", "B", 16)
     pdf.cell(200, 10, "AI Resume Skill Extractor Report", ln=True, align="C")
     pdf.ln(10)
 
@@ -82,10 +82,10 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "AI Explanation", ln=True)
 
-    pdf.set_font("Arial", "", 10)
+    pdf.set_font("Arial", "B", 10)
     pdf.multi_cell(0, 8, explanation)
 
-    pdf.set_font("Times", "I", 16)
+    pdf.set_font("Arial", "I", 16)
     pdf.cell(200, 10, f"{candidate_name}", ln=True, align="C")
     pdf.ln(10)
 
