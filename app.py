@@ -3,32 +3,18 @@ import os
 import sys
 import base64
 from io import BytesIO
-import logging
-
-from langchain_core.prompts import PromptTemplate
-
 
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
 
-st.cache_data.clear()
-st.cache_resource.clear()
-
-
-def get_secret_key():
-    try:
-        return st.secrets["GROQ_API_KEY"]
-    except Exception:
-        return None
-
-groq_api_key = get_secret_key()
-
-from langchain_groq import ChatGroq
-
+# ------------------ SECRETS ------------------
 groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 if not groq_api_key:
-    st.error("❌ GROQ API Key missing in secrets")
+    st.error("❌ GROQ API Key missing in Streamlit secrets")
     st.stop()
+
+# ------------------ LLM INIT (ONLY ONCE) ------------------
+from langchain_groq import ChatGroq
 
 try:
     llm = ChatGroq(
@@ -38,9 +24,6 @@ try:
 except Exception as e:
     st.error(f"❌ LLM init failed: {e}")
     llm = None
-
-st.write("Groq key loaded:", bool(groq_api_key))
-st.write("LLM object:", llm)
 
 # ------------------ PATH SETUP ------------------
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
