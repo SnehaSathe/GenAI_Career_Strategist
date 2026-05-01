@@ -79,61 +79,20 @@ def extract_skills_cached(
     """
 
     prompt = f"""
-You are an expert AI Resume Evaluator and ATS (Applicant Tracking System) Analyst.
+You are a strict JSON generator.
+Extract **only technical skills** from the given texts.
+Do not include explanations or extra text.
+Return JSON only in this exact format:
 
-Your task is to compare a RESUME with a JOB DESCRIPTION and generate a professional hiring analysis.
+{{
+    "resume_skills": ["Skill1", "Skill2"],
+    "jd_skills": ["SkillA", "SkillB"]
+}}
 
-⚠️ RULES:
-- Be strict but fair.
-- Do NOT hallucinate skills or experience.
-- Base everything ONLY on given text.
-- Do NOT include JSON. Return ONLY structured readable text.
-- Works for ALL domains (Data Science, AI, Software, Marketing, Finance, etc.)
-
-------------------------------------------------------------
-📊 OUTPUT FORMAT (STRICTLY FOLLOW THIS FORMAT)
-------------------------------------------------------------
-
-Match Level: <percentage>%
-
-Summary:
-Write 1–2 lines explaining overall match between resume and job description.
-
-Strengths:
-- Bullet 1
-- Bullet 2
-- Bullet 3
-
-Gaps:
-- Bullet 1
-- Bullet 2
-- Bullet 3
-
-Improvement Suggestions:
-- Bullet 1
-- Bullet 2
-- Bullet 3
-
-------------------------------------------------------------
-📌 MATCH SCORE RULE:
-- 0–40% = low match
-- 41–70% = moderate match
-- 71–90% = good match
-- 91–100% = excellent match
-
-------------------------------------------------------------
-📌 EVALUATION RULES:
-
-1. Strengths = skills, tools, experience that MATCH JD
-2. Gaps = missing skills, missing tools, missing experience
-3. Suggestions = actionable career improvement tips
-4. Always include technical + soft skills if relevant
-
-------------------------------------------------------------
-📄 RESUME:
+Resume:
 {resume_text}
 
-📄 JOB DESCRIPTION:
+Job Description:
 {jd_text}
 """
 
