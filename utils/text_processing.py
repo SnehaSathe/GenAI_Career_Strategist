@@ -37,48 +37,10 @@ image_path = os.path.join(BASE_DIR, "logo.png")  # logo in main folder
 with open(image_path, "rb") as f:
     data = f.read()
 
-encoded = base64.b64encode(data).decode()
-
-
-# Get API key safely
-groq_api_key = st.secrets["GROQ_API_KEY"]
-
-# --- Initialize LLM ---
-llm = ChatGroq(
-    api_key=st.secrets["GROQ_API_KEY"],
-    model_name="llama-3.1-8b-instant"  # or whatever model you prefer
-)
-
-# --- Initialize LLM safely (llm will be None if we can't init) ---
-
-if groq_api_key:
-    try:
-        # Example: try to initialize a Groq/LangChain LLM client if you have the lib.
-        # Replace/import with whatever client you use in your environment.
-        # If you don't have a client, keep llm = None and the regex will be used.
-        from langchain_groq import ChatGroq  # adjust to actual package you use (may be different)
-        llm = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-8b-instant")
-        
-    except Exception as e:
-        # If langchain_groq is not installed or initialization fails, llm stays None
-        st.warning(f"LLM init failed or client not installed: {e}. Falling back to regex extractor.")
-        llm = None
-else:
-    st.info("No GROQ_API_KEY found — using regex fallback for name extraction.")
 
 
 
 
-# ----------------- MODEL CHOICE -----------------
-
-model_choice = st.selectbox(
-        "🔍 Select Groq Model (used when online)",
-        ["llama-3.1-8b-instant","mixtral-8x7b-32768"],
-    index=0,  key="groq_model_select"
-    )
-    
-
-    
 
 # ----------------- INPUT SECTION -----------------
 col1, col2 = st.columns(2)
