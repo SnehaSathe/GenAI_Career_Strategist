@@ -1,33 +1,33 @@
-# ======================
-# Main Project: GENAI Career Strategist
-# Dependencies combined from all mini projects
-# ======================
-
-# App Framework
+# App
 streamlit
 
-# PDF Parsing
-pymupdf
-
-# NLP & Embeddings
-spacy
-keybert
-scikit-learn
-sentence-transformers
-
-# LLM Orchestration
-langchain>=0.2.0
-langchain-community
-langchain-ollama
-groq
-
-# Utilities
+# Core
 pandas
 numpy
+requests
+
+# PDF
+pymupdf
+fpdf
+
+# NLP
+spacy==3.7.2
+keybert
+
+# ML
+scikit-learn
+
+# LLM
+groq
+
+# LangChain
+langchain>=0.2.0
+langchain-core
+langchain-community
+
+# Utils
+python-docx
 python-dotenv
-fpdf2
-langchain-groq
-python-docx 
-sentence-transformers
-torch
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# spaCy model (version matched with spacy 3.7)
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
