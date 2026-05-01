@@ -1,9 +1,12 @@
+import streamlit as st
+
+st.cache_data.clear()
+st.cache_resource.clear()
 import os
 import sys
 import json
 import base64
 from io import BytesIO
-import streamlit as st
 from fpdf import FPDF
 import logging
 from langchain_core.prompts import PromptTemplate
@@ -26,6 +29,19 @@ from resume_skill_extractor.resume_parser import extract_candidate_name
 from jd_skill_gap_analyzer.helper import embed_skills, find_matches, generate_report
 from ai_role_recommender.inference_engine import AIRoleRecommender
 
+import spacy
+import subprocess
+import sys
+
+import spacy
+import streamlit as st
+
+@st.cache_resource
+def load_spacy_model():
+    return spacy.blank("en")
+
+nlp = load_spacy_model()
+
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
 
@@ -42,7 +58,7 @@ st.markdown(f"""
 
 # ------------------ LLM INIT ------------------
 llm = None
-groq_api_key = st.secrets.get("GROQ_API_KEY")
+groq_api_key = st.secrets["GROQ_API_KEY"] if "GROQ_API_KEY" in st.secrets else None
 
 if groq_api_key:
     try:
@@ -52,7 +68,7 @@ if groq_api_key:
         pass
 model_choice="llama-3.1-8b-instant"  # default Groq model
 # ------------------ FUNCTIONS ------------------
-@st.cache_resource
+@st.cache_data
 def get_match_label(score):
     if score >= 80:
         return "✅ Strong Match"
@@ -60,7 +76,8 @@ def get_match_label(score):
         return "⚠️ Moderate Match"
     else:
         return "❌ Low Match"
-@st.cache_resource
+    
+@st.cache_data
 def generate_llm_explanation(score, resume_skills, jd_skills, matched_skills, missing_skills):
     if not llm:
         return "Basic analysis only (LLM not available)."
@@ -178,8 +195,7 @@ if st.button("Analyze"):
                 explanation=explanation   # IMPORTANT
             )
 
-            pdf_bytes = pdf.output(dest='S').encode('latin-1')   
-
+            pdf_bytes = pdf.output(dest='S').encode("latin-1", errors="ignore")
             st.download_button(
                 "Download Report",
                 data=pdf_bytes,
