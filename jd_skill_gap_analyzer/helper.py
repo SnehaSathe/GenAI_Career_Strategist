@@ -13,8 +13,7 @@ sys.path.append(os.path.abspath(".."))
 # Initialize Embedding model
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")   # default llama2
 
-# Load secrets
-groq_api_key = st.secrets["GROQ_API_KEY"]
+
 
 
 def embed_skills(resume_skills, jd_skills):
