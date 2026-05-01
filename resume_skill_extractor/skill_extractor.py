@@ -9,8 +9,8 @@ from langchain_community.llms import Ollama
 
 # ---------------- CONFIG ----------------
 groq_api_key = (
-    os.getenv("GROQ_API_KEY")
-    or st.secrets.get("GROQ_API_KEY")
+    os.getenv("GROQ_API_KEY")        # first check environment variable
+    or st.secrets.get("GROQ_API_KEY")  # fallback to secrets.toml
 )
 OLLAMA_MODEL = "mistral:latest"
 
@@ -66,20 +66,13 @@ def use_groq(prompt, model_choice, api_key):
 
 
 # ------------------------------------------------------------------ #
-#  RULE-BASED HEADING-BULLET EXTRACTOR  (NEW)                         #
-#                                                                      #
-#  Handles resume skill-section lines like:                            #
-#    "• Python & Backend · Python (primary), FastAPI, Flask, ..."      #
-#    "• RAG & Vector DB · FAISS, Sentence Transformers, Pinecone"      #
-#    "• LLM Integrations · OpenAI/GPT, Groq LLMs, Ollama, LangChain"  #
-#    "• Databases : MySQL, SQLite, FAISS (vector)"                     #
-#                                                                      #
-#  What it does:                                                        #
-#   1. Detects bullet lines that contain a heading + separator + list. #
-#   2. Splits heading on & / and  → each group is a candidate term.   #
-#   3. Splits skill list on commas → each item is a candidate term.   #
-#   4. Light cleanup (strips parentheticals like "(primary)").         #
-#   No predefined allow/block lists — pure structural parsing.         #
+#  RULE-BASED HEADING-BULLET EXTRACTOR                                #
+#                                                                     #
+#  Handles resume skill-section lines like:                           #
+#    "• Python & Backend · Python (primary), FastAPI, Flask, ..."     #
+#    "• RAG & Vector DB · FAISS, Sentence Transformers, Pinecone"     #
+#    "• LLM Integrations · OpenAI/GPT, Groq LLMs, Ollama, LangChain" #
+#    "• Databases : MySQL, SQLite, FAISS (vector)"                    #
 # ------------------------------------------------------------------ #
 
 # Leading bullet characters produced by PyMuPDF / various resume formats
@@ -87,21 +80,17 @@ _BULLET_RE = re.compile(
     r'^[\u2022\u25aa\u25b8\u25ba\u25c6\u25cf\u2043•▪▸►◆●\-\*]\s*'
 )
 
-# Separators between the heading label and the comma-separated skill list.
-# Covers: middle-dot (·  \u00b7), pipe (|), em-dash (—), colon (:)
+# Separators between heading label and comma-separated skill list
+# Covers: middle-dot (· \u00b7), pipe (|), em-dash (—), colon (:)
 _SEP_RE = re.compile(r'\s*[\u00b7·|—:]\s*', re.UNICODE)
 
 
 def _split_heading(heading: str) -> list[str]:
     """
-    Split a heading label on ' & ' or ' and ' so each part becomes
-    an individual candidate skill term.
-
-    Examples:
-        'Python & Backend'   →  ['Python', 'Backend']
-        'RAG & Vector DB'    →  ['RAG', 'Vector DB']
-        'LLM Integrations'   →  ['LLM Integrations']
-        'Cloud & DevOps'     →  ['Cloud', 'DevOps']
+    Split heading on ' & ' or ' and ' so each part becomes a candidate term.
+    'Python & Backend'  →  ['Python', 'Backend']
+    'RAG & Vector DB'   →  ['RAG', 'Vector DB']
+    'LLM Integrations'  →  ['LLM Integrations']
     """
     parts = re.split(r'\s+(?:&|and)\s+', heading, flags=re.IGNORECASE)
     return [p.strip() for p in parts if p.strip()]
@@ -109,20 +98,13 @@ def _split_heading(heading: str) -> list[str]:
 
 def _split_skills(skills_str: str) -> list[str]:
     """
-    Split a comma-separated skill list and clean each item.
-
-    - Strips parenthetical qualifiers: 'Python (primary)' → 'Python'
-    - Keeps compound names intact: 'GitHub Actions', 'REST APIs', 'CI/CD'
-    - Does NOT split on '/' because many skills use it: 'OpenAI/GPT'
-
-    Example:
-        'Python (primary), FastAPI, Flask, REST APIs, Async Programming'
-        → ['Python', 'FastAPI', 'Flask', 'REST APIs', 'Async Programming']
+    Split comma-separated skill list and clean each item.
+    Strips parenthetical qualifiers: 'Python (primary)' → 'Python'
+    Does NOT split on '/' to keep names like 'OpenAI/GPT' intact.
     """
     items = [s.strip() for s in skills_str.split(',') if s.strip()]
     cleaned = []
     for item in items:
-        # Remove trailing parenthetical notes
         item = re.sub(r'\s*\([^)]*\)', '', item).strip()
         if item:
             cleaned.append(item)
@@ -139,7 +121,6 @@ def extract_skills_from_headings(resume_text: str) -> list[str]:
       - Contain a separator (·, |, —, :) splitting heading from skills
 
     Returns a flat, deduplicated list of raw candidate strings.
-    These are merged with LLM-extracted skills in extract_skills_cached().
     """
     raw: list[str] = []
     lines = resume_text.splitlines()
@@ -149,14 +130,14 @@ def extract_skills_from_headings(resume_text: str) -> list[str]:
         if not stripped:
             continue
 
-        # ── Must start with a bullet character ───────────────────────────
+        # Must start with a bullet character
         if not _BULLET_RE.match(stripped):
             continue
 
         # Remove the leading bullet to get pure content
         content = _BULLET_RE.sub('', stripped).strip()
 
-        # ── Must contain a separator between heading and skill list ───────
+        # Must contain a separator between heading and skill list
         if not _SEP_RE.search(content):
             continue
 
@@ -168,11 +149,9 @@ def extract_skills_from_headings(resume_text: str) -> list[str]:
         heading_part = parts[0].strip()   # e.g. "Python & Backend"
         skills_part  = parts[1].strip()   # e.g. "Python (primary), FastAPI, Flask"
 
-        # ── Extract candidate terms from heading ──────────────────────────
         # "Python & Backend" → ["Python", "Backend"]
         heading_terms = _split_heading(heading_part)
 
-        # ── Extract candidate terms from skill list ───────────────────────
         # "Python (primary), FastAPI, Flask" → ["Python", "FastAPI", "Flask"]
         skill_terms = _split_skills(skills_part)
 
@@ -196,19 +175,18 @@ def filter_skill_terms(skills: list[str]) -> list[str]:
     """
     Remove entries that are clearly sentences / phrases, not skill names.
 
-    A valid skill term:
-      - Is short        : ≤ 5 words
-      - Is concise      : ≤ 40 characters
-      - Has no sentence endings : doesn't end with  .  !  ?
-      - Has no sentence-like verbs at the start:
-            "Independently researched ...", "Built internal tools ...",
-            "Wrote reusable ...", "Reduced average ..."
-      - Contains no metrics/percentages used in achievement sentences:
-            "a 150x speed", "15% productivity", "30% efficiency gains"
+    Blocks:
+      - Strings longer than 40 characters
+      - Strings with more than 5 words
+      - Strings ending with sentence punctuation (. ! ?)
+      - Strings starting with common resume action verbs
+      - Strings containing metric patterns like "150x", "15%"
 
-    Everything that passes all checks is kept; the rest is silently dropped.
+    Examples blocked:
+      "Independently researched skill-scoring methods for resume-JD matching"
+      "Reduced average skill-mapping turnaround from ~20 min to <8 sec"
+      "a 150x speed"   "15% productivity"   "30% efficiency gains."
     """
-    # Common sentence-starting verbs found in resume achievement bullets
     _SENTENCE_VERBS = re.compile(
         r'^(independently|built|wrote|designed|developed|created|implemented|'
         r'reduced|improved|increased|achieved|managed|led|collaborated|'
@@ -218,31 +196,21 @@ def filter_skill_terms(skills: list[str]) -> list[str]:
         re.IGNORECASE
     )
 
-    # Metrics pattern — achievement phrases like "a 150x speed", "15% gains"
     _METRIC_RE = re.compile(r'\d+\s*[x%]', re.IGNORECASE)
 
     filtered = []
     for skill in skills:
         s = skill.strip()
 
-        # ── Rule 1: too long in characters ───────────────────────────────
-        if len(s) > 40:
+        if len(s) > 40:                   # too long in characters
             continue
-
-        # ── Rule 2: too many words ────────────────────────────────────────
-        if len(s.split()) > 5:
+        if len(s.split()) > 5:            # too many words
             continue
-
-        # ── Rule 3: ends like a sentence ─────────────────────────────────
-        if s.endswith(('.', '!', '?')):
+        if s.endswith(('.', '!', '?')):   # ends like a sentence
             continue
-
-        # ── Rule 4: starts with an action/sentence verb ───────────────────
-        if _SENTENCE_VERBS.match(s):
+        if _SENTENCE_VERBS.match(s):      # starts with action verb
             continue
-
-        # ── Rule 5: contains a metric (achievement phrases, not skills) ───
-        if _METRIC_RE.search(s):
+        if _METRIC_RE.search(s):          # contains a metric
             continue
 
         filtered.append(s)
@@ -261,18 +229,20 @@ def extract_skills_cached(
     """
     Extract skills separately for Resume and JD.
 
-    Layer 1 — Rule-based heading-bullet parser (NEW):
+    Layer 1 — Rule-based heading-bullet parser:
         Captures heading labels ("Python & Backend" → "Python", "Backend")
         AND every comma-separated skill after the separator (·  |  :).
-        Guaranteed to catch structured Skills sections regardless of LLM.
 
     Layer 2 — LLM full-text extraction:
         Catches skills buried in prose, project descriptions, summaries.
         Also extracts JD required skills.
 
     Layer 3 — Merge:
-        Structural terms come first (ground truth from explicit skill section).
-        LLM-only terms appended to fill gaps from prose sections.
+        Structural terms come first (ground truth).
+        LLM-only terms appended to fill gaps.
+
+    Layer 4 — Filter:
+        Removes sentences, metrics, and achievement phrases.
 
     Always returns: (resume_skills_list, jd_skills_list)
     """
@@ -297,6 +267,7 @@ For the Resume:
   Examples: "Groq LLMs" → "Groq",  "Docker-based deployments" → "Docker",
             "FAISS (vector)" → "FAISS", "Python (primary)" → "Python"
 - Remove soft skills, job titles, company names, locations, degree names.
+- Do NOT include sentences, achievement phrases, or metrics.
 - Deduplicate case-insensitively.
 
 For the Job Description:
@@ -353,8 +324,6 @@ Job Description:
         st.write("Raw LLM output:", raw_result)
 
     # ── Layer 3: Merge structural + LLM results ───────────────────────────
-    # Structural terms come first (explicit skill section = ground truth).
-    # LLM-only terms fill gaps from prose / project sections.
     structural_lower = {s.lower() for s in structural_skills}
     merged_resume = structural_skills + [
         s for s in resume_skills_llm
@@ -362,11 +331,52 @@ Job Description:
     ]
 
     # ── Layer 4: Filter out sentences, metrics, achievement phrases ────────
-    # Drops entries like:
-    #   "Independently researched skill-scoring methods for resume-JD matching"
-    #   "Reduced average skill-mapping turnaround from ~20 min to <8 sec"
-    #   "a 150x speed"   "15% productivity"   "30% efficiency gains."
     merged_resume = filter_skill_terms(merged_resume)
     jd_skills     = filter_skill_terms(jd_skills)
 
     return merged_resume, jd_skills
+
+
+# ---------------- RENDER AI EXPLANATION ----------------
+def render_ai_explanation(explanation: dict, match_score: float):
+    st.markdown("## 🤖 AI Explanation")
+
+    # Match Level
+    st.markdown(f"**Match Level: {match_score:.1f}%**")
+    st.progress(match_score / 100)
+    st.markdown("---")
+
+    # Overall Summary
+    if explanation.get("overall_summary"):
+        st.markdown(explanation["overall_summary"])
+        st.markdown("")
+
+    # Strengths
+    if explanation.get("strengths"):
+        st.markdown("**Strengths:**")
+        for s in explanation["strengths"]:
+            st.markdown(f"- {s}")
+        st.markdown("")
+
+    # Skill Gaps
+    if explanation.get("skill_gaps"):
+        st.markdown("**Gaps:**")
+        for g in explanation["skill_gaps"]:
+            st.markdown(f"- {g}")
+        st.markdown("")
+
+    # Improvement Suggestions / Recommendation
+    if explanation.get("recommendation") or explanation.get("interview_tips"):
+        st.markdown("**Improvement Suggestions:**")
+        if explanation.get("recommendation"):
+            st.markdown(f"- {explanation['recommendation']}")
+        for tip in explanation.get("interview_tips", []):
+            st.markdown(f"- {tip}")
+        st.markdown("")
+
+    # Score Explanation
+    if explanation.get("score_explanation"):
+        st.markdown("**Score Explanation:**")
+        st.markdown(explanation["score_explanation"])
+
+    st.markdown("---")
