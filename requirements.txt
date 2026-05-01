@@ -1,33 +1,13 @@
-# App
 streamlit
-
-# Core
 pandas
 numpy
-requests
-
-# PDF
 pymupdf
 fpdf
-
-# NLP
 spacy==3.7.2
-keybert
-
-# ML
 scikit-learn
-
-# LLM
 groq
-
-# LangChain
-langchain>=0.2.0
+langchain
 langchain-core
-langchain-community
-
-# Utils
 python-docx
 python-dotenv
-
-# spaCy model (version matched with spacy 3.7)
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
