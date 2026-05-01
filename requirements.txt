@@ -3,19 +3,15 @@ pandas
 numpy
 pymupdf
 fpdf
-
 spacy==3.7.2
-
+scikit-learn
 groq
-
-langchain==0.2.0
 langchain-core
 langchain-community
 langchain-groq
-sentence-transformers
-
 python-docx
 python-dotenv
-
-# spaCy model (only one)
+sentence-transformers
+torch
+torchvision
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
