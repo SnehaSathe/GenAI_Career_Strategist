@@ -9,6 +9,7 @@ import sys
 from io import BytesIO
 import base64
 from PIL import Image
+from langchain_core.prompts import PromptTemplate
 
 # Ensure parent directory is in sys.path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
