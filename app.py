@@ -85,17 +85,53 @@ def generate_llm_explanation(score, resume_skills, jd_skills, matched_skills, mi
         return "LLM not available"
 
     prompt = f"""
-    You are a resume analysis assistant.
+You are a senior AI Resume Reviewer working like an ATS + HR recruiter.
 
-    Score: {score}%
+Your task is to generate a professional resume evaluation report based on:
 
-    Resume Skills: {resume_skills}
-    JD Skills: {jd_skills}
-    Matched: {[m[0] for m in matched_skills]}
-    Missing: {missing_skills}
+Score, Resume Skills, Job Description Skills, Matched Skills, Missing Skills.
 
-    Give short insights + improvement suggestions (max 120 words)
-    """
+------------------------------------------------------------
+📊 INPUT DATA
+------------------------------------------------------------
+Score: {score}%
+
+Resume Skills: {resume_skills}
+Job Description Skills: {jd_skills}
+Matched Skills: {[m[0] for m in matched_skills]}
+Missing Skills: {missing_skills}
+
+------------------------------------------------------------
+📌 OUTPUT FORMAT (STRICTLY FOLLOW)
+------------------------------------------------------------
+
+Match Level: {score}%
+
+Summary:
+Give a 1–2 line overall evaluation of candidate-job fit.
+
+Strengths:
+- Mention strong matching skills and why they are valuable
+- Highlight technical strengths clearly
+- Focus on real job relevance
+
+Gaps:
+- Clearly mention missing important skills
+- Be specific (tools, frameworks, experience gaps)
+
+Improvement Suggestions:
+- Give actionable career improvement steps
+- Suggest exact skills/tools to learn
+- Suggest project ideas or experience improvements
+
+------------------------------------------------------------
+📌 RULES:
+- Keep response under 120–150 words total
+- Be professional like LinkedIn recruiter feedback
+- Do NOT repeat raw lists blindly
+- Do NOT hallucinate new skills
+- Be clear, concise, and human-readable
+"""
 
     try:
         return llm.invoke(prompt).content
