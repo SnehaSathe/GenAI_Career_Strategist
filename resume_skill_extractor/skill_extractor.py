@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import socket
 import requests
@@ -35,7 +36,7 @@ def use_ollama(prompt: str) -> str:
 
 
 # ---------------- GROQ ----------------
-def use_groq(prompt, model_choice, api_key):
+def use_groq(prompt: str, model_choice: str, api_key: str):
     if not api_key:
         return None
 
@@ -60,38 +61,7 @@ def use_groq(prompt, model_choice, api_key):
     return None
 
 
-# ---------------- SINGLE SOURCE EXTRACTION ----------------
-def build_extraction_prompt(source_label: str, text: str) -> str:
-    """
-    Build a prompt that extracts atomic, normalized skills from a single source.
-    Keeping sources separate prevents the LLM from cross-contaminating phrasing.
-    """
-    return f"""
-You are a strict JSON generator for skill extraction.
-
-Rules:
-- Extract ONLY individual technical skills from the text below.
-- Split compound entries: "RAG & Vector DB" → ["RAG", "Vector DB"]
-- Normalize to their most common short form:
-    "RAG systems" → "RAG"
-    "LLM Integrations" → "LLMs"
-    "Docker-based deployments" → "Docker"
-    "FAISS (vector)" → "FAISS"
-    "FAISS / Vector DB" → ["FAISS", "Vector DB"]
-    "REST APIs" → "REST API"
-- Remove duplicates.
-- Do NOT include soft skills, years of experience, or job titles.
-- Return ONLY this JSON, no extra text:
-
-{{
-    "{source_label}_skills": ["Skill1", "Skill2", "Skill3"]
-}}
-
-Text ({source_label}):
-{text}
-"""
-
-
+# ---------------- LLM ROUTER ----------------
 def run_llm(prompt: str, model_choice: str, api_key: str) -> str | None:
     if is_local_env():
         try:
@@ -102,32 +72,134 @@ def run_llm(prompt: str, model_choice: str, api_key: str) -> str | None:
         return use_groq(prompt, model_choice, api_key)
 
 
-def parse_skills_from_response(raw: str, key: str) -> list[str]:
-    """Safely parse a list of skills from an LLM JSON response."""
+# ---------------- PREPROCESSING ----------------
+def preprocess_resume_text(text: str) -> str:
+    """
+    Clean resume text so the LLM can parse structured bullet sections.
+
+    Handles patterns like:
+      "RAG & Vector DB · FAISS, Sentence Transformers, Pinecone"
+    Converts the · separator to a colon so the LLM sees:
+      "RAG & Vector DB: FAISS, Sentence Transformers, Pinecone"
+    """
+    # Replace bullet-point dot separator (·) used in Core Skills sections
+    text = text.replace("·", ":")
+    text = text.replace("•", "\n")   # turn bullet glyphs into newlines
+
+    # Collapse excess blank lines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    # Normalize unicode dashes/hyphens
+    text = text.replace("\u2013", "-").replace("\u2014", "-")
+
+    return text.strip()
+
+
+def preprocess_jd_text(text: str) -> str:
+    """Light cleanup for job description text."""
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = text.replace("\u2013", "-").replace("\u2014", "-")
+    return text.strip()
+
+
+# ---------------- PROMPT BUILDER ----------------
+def build_extraction_prompt(source_label: str, text: str) -> str:
+    """
+    Build a prompt that extracts atomic, normalized skills from a single source.
+
+    Separate prompts per source prevent the LLM from cross-contaminating
+    phrasing between resume and JD (which caused RAG ≠ RAG systems).
+    """
+    return f"""
+You are a strict JSON generator for technical skill extraction.
+
+TASK: Extract every individual technical skill mentioned ANYWHERE in the text below.
+This includes: Summary, Core Skills section, Project descriptions, Experience bullets,
+Tools mentioned inline — every part of the document.
+
+SPLITTING RULES (very important):
+- Lines formatted as "Category · skill1, skill2, skill3" → extract the category concepts
+  AND every item after the colon/dot as separate skills.
+  Example: "RAG & Vector DB: FAISS, Sentence Transformers, Pinecone"
+           → ["RAG", "Vector DB", "FAISS", "Sentence Transformers", "Pinecone"]
+- Split compound entries joined by "&" or "/":
+  "AWS/GCP" → ["AWS", "GCP"]
+  "AI/ML Model Support" → ["AI", "ML"]
+  "RAG & Vector DB" → ["RAG", "Vector DB"]
+- Keep multi-word skills that belong together as one:
+  "GitHub Actions", "CI/CD", "System Design", "Async Programming",
+  "Prompt Engineering", "LangChain", "LangGraph", "Top-K Retrieval",
+  "Cosine Similarity", "Sentence Transformers", "Ollama Embeddings"
+
+NORMALIZATION RULES:
+- "RAG systems" → "RAG"
+- "RAG & Vector DB" → ["RAG", "Vector DB"]
+- "LLM Integrations" → "LLMs"
+- "Docker-based deployments" → "Docker"
+- "FAISS (vector)" → "FAISS"
+- "FAISS / Vector DB" → ["FAISS", "Vector DB"]
+- "REST APIs" → "REST API"
+- "OpenAI/GPT" → ["OpenAI", "GPT"]
+- "Groq LLMs" → ["Groq", "LLMs"]
+- "Azure (AI Services, Cloud Fundamentals)" → ["Azure", "Azure AI Services"]
+- "GitHub Copilot" → "GitHub Copilot"
+- "n8n Automation" → "n8n"
+- "POC Development" → "POC Development"
+
+EXCLUSION RULES:
+- Do NOT include: soft skills, years of experience, job titles, company names,
+  university names, degree names, city/country names, personal pronouns.
+
+DEDUPLICATION:
+- Remove duplicates (case-insensitive). Keep the cleaner/shorter form.
+
+OUTPUT FORMAT — return ONLY this JSON, no explanation, no markdown fences:
+
+{{
+    "{source_label}_skills": ["Skill1", "Skill2", "Skill3"]
+}}
+
+Text ({source_label}):
+{text}
+"""
+
+
+# ---------------- JSON PARSER ----------------
+def parse_skills_from_response(raw: str | None, key: str) -> list[str]:
+    """
+    Safely parse a list of skills from an LLM JSON response.
+    Handles markdown fences and partial JSON gracefully.
+    """
     if not raw:
         return []
 
     cleaned = raw.strip()
+
+    # Strip ```json ... ``` or ``` ... ``` fences
     if cleaned.startswith("```"):
-        # Strip ```json ... ``` fences
         lines = cleaned.split("\n")
         cleaned = "\n".join(
             line for line in lines
             if not line.strip().startswith("```")
         ).strip()
 
+    # Attempt 1: direct JSON parse
     try:
         data = json.loads(cleaned)
         return [str(s).strip() for s in data.get(key, []) if s]
     except json.JSONDecodeError:
-        # Fallback: try extracting the JSON object with braces
-        try:
-            start = cleaned.index("{")
-            end = cleaned.rindex("}") + 1
-            data = json.loads(cleaned[start:end])
-            return [str(s).strip() for s in data.get(key, []) if s]
-        except Exception:
-            return []
+        pass
+
+    # Attempt 2: extract first {...} block (handles leading/trailing prose)
+    try:
+        start = cleaned.index("{")
+        end = cleaned.rindex("}") + 1
+        data = json.loads(cleaned[start:end])
+        return [str(s).strip() for s in data.get(key, []) if s]
+    except Exception:
+        pass
+
+    return []
 
 
 # ---------------- MAIN EXTRACTION ----------------
@@ -136,35 +208,48 @@ def extract_skills_cached(
     resume_text: str,
     jd_text: str,
     model_choice: str,
-    groq_api_key=None
+    groq_api_key: str | None = None
 ) -> tuple[list[str], list[str]]:
     """
     Extract and normalize skills separately for Resume and JD.
-    Separate prompts prevent cross-source phrasing inconsistency.
-    Returns: (resume_skills_list, jd_skills_list)
+
+    Why separate prompts?
+    → If both texts go into one prompt, the LLM phrases the same concept
+      differently per source (e.g. "RAG systems" vs "RAG & Vector DB"),
+      which breaks downstream matching.
+
+    Returns: (resume_skills, jd_skills)
     """
 
-    # --- Extract resume skills ---
-    resume_prompt = build_extraction_prompt("resume", resume_text)
+    # --- Resume ---
+    cleaned_resume = preprocess_resume_text(resume_text)
+    resume_prompt = build_extraction_prompt("resume", cleaned_resume)
     raw_resume = run_llm(resume_prompt, model_choice, groq_api_key)
-    if raw_resume is None:
-        st.error("⚠️ LLM call failed for resume extraction.")
-    resume_skills = parse_skills_from_response(raw_resume, "resume_skills")
 
-    # --- Extract JD skills ---
-    jd_prompt = build_extraction_prompt("jd", jd_text)
+    if raw_resume is None:
+        st.error("⚠️ LLM call failed for resume skill extraction.")
+        resume_skills = []
+    else:
+        resume_skills = parse_skills_from_response(raw_resume, "resume_skills")
+
+    # --- Job Description ---
+    cleaned_jd = preprocess_jd_text(jd_text)
+    jd_prompt = build_extraction_prompt("jd", cleaned_jd)
     raw_jd = run_llm(jd_prompt, model_choice, groq_api_key)
+
     if raw_jd is None:
-        st.error("⚠️ LLM call failed for JD extraction.")
-    jd_skills = parse_skills_from_response(raw_jd, "jd_skills")
+        st.error("⚠️ LLM call failed for JD skill extraction.")
+        jd_skills = []
+    else:
+        jd_skills = parse_skills_from_response(raw_jd, "jd_skills")
 
     return resume_skills, jd_skills
 
 
 # ---------------- SKILL MATCHING ----------------
 def normalize(skill: str) -> str:
-    """Lowercase and strip for fuzzy-safe comparison."""
-    return skill.lower().strip()
+    """Lowercase, strip, collapse internal spaces."""
+    return re.sub(r'\s+', ' ', skill.lower().strip())
 
 
 def match_skills(
@@ -172,23 +257,46 @@ def match_skills(
     jd_skills: list[str]
 ) -> tuple[list[str], list[str]]:
     """
-    Match JD skills against resume skills using normalized comparison.
-    Returns: (matched, missing)
+    Match JD skills against resume skills.
+
+    Strategy (in priority order):
+    1. Exact normalized match         → "rag" == "rag"
+    2. Substring containment          → "rag" in "rag pipeline" or vice versa
+    3. Token overlap (≥1 shared word) → "vector db" shares "db" with "faiss vector db"
+
+    Returns: (matched_jd_skills, missing_jd_skills)
     """
-    resume_normalized = {normalize(s): s for s in resume_skills}
+    resume_normalized = [normalize(s) for s in resume_skills]
 
     matched = []
     missing = []
 
     for jd_skill in jd_skills:
         jd_norm = normalize(jd_skill)
+        jd_tokens = set(jd_norm.split())
 
-        # Check for exact normalized match OR substring containment
-        # e.g. "rag" in "rag & vector db" → match
-        found = any(
-            jd_norm == r_norm or jd_norm in r_norm or r_norm in jd_norm
-            for r_norm in resume_normalized
-        )
+        found = False
+        for r_norm in resume_normalized:
+            r_tokens = set(r_norm.split())
+
+            # Rule 1: exact match
+            if jd_norm == r_norm:
+                found = True
+                break
+
+            # Rule 2: substring containment (handles "RAG" ↔ "RAG systems")
+            if jd_norm in r_norm or r_norm in jd_norm:
+                found = True
+                break
+
+            # Rule 3: meaningful token overlap
+            # Ignore single-letter tokens and very generic words
+            ignore = {"and", "or", "the", "a", "an", "with", "for", "of", "in"}
+            meaningful_jd = jd_tokens - ignore
+            meaningful_r = r_tokens - ignore
+            if meaningful_jd and meaningful_r and meaningful_jd & meaningful_r:
+                found = True
+                break
 
         if found:
             matched.append(jd_skill)
@@ -196,3 +304,11 @@ def match_skills(
             missing.append(jd_skill)
 
     return matched, missing
+
+
+# ---------------- SCORE ----------------
+def compute_match_score(matched: list[str], jd_skills: list[str]) -> float:
+    """Return match percentage rounded to 1 decimal."""
+    if not jd_skills:
+        return 0.0
+    return round(len(matched) / len(jd_skills) * 100, 1)
