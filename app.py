@@ -10,7 +10,6 @@ from langchain_core.prompts import PromptTemplate
 # ------------------ STREAMLIT CONFIG FIRST ------------------
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
 
-# ------------------ SAFE SECRETS HANDLING ------------------
 import streamlit as st
 
 def get_secret_key():
