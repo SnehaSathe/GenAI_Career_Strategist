@@ -9,15 +9,14 @@ from langchain_community.llms import Ollama
 
 # ---------------- CONFIG ----------------
 groq_api_key = (
-    os.getenv("GROQ_API_KEY")   # first check environment variable
-    or st.secrets.get("GROQ_API_KEY")  # fallback to secrets.toml
+    os.getenv("GROQ_API_KEY")
+    or st.secrets.get("GROQ_API_KEY")
 )
 OLLAMA_MODEL = "mistral:latest"
 
 
 # ---------------- ENV DETECTION ----------------
 def is_local_env():
-    """Detect if running locally (for Ollama fallback)."""
     try:
         host = socket.gethostname()
         ip = socket.gethostbyname(host)
@@ -29,12 +28,10 @@ def is_local_env():
 # ---------------- OLLAMA ----------------
 @st.cache_resource
 def get_ollama_client():
-    """Initialize Ollama client (cached)."""
     return Ollama(model=OLLAMA_MODEL)
 
 
 def use_ollama(prompt: str) -> str:
-    """Run prompt locally via Ollama."""
     llm = get_ollama_client()
     return llm.invoke(prompt)
 
@@ -67,7 +64,6 @@ def use_groq(prompt, model_choice, api_key):
 
 # ---------------- LLM ROUTER ----------------
 def run_llm(prompt: str, model_choice: str, api_key: str) -> str | None:
-    """Route prompt to Ollama (local) or Groq (cloud)."""
     if is_local_env():
         try:
             return use_ollama(prompt)
@@ -79,21 +75,15 @@ def run_llm(prompt: str, model_choice: str, api_key: str) -> str | None:
 
 # ---------------- JSON PARSER ----------------
 def parse_json_response(raw: str | None, key: str) -> list[str]:
-    """
-    Safely parse a list of skills from an LLM JSON response.
-    Handles markdown fences and leading/trailing prose gracefully.
-    """
     if not raw:
         return []
 
     cleaned = raw.strip()
 
-    # Strip ```json ... ``` or ``` ... ``` fences
     if cleaned.startswith("```"):
         cleaned = cleaned.split("```")[1]
         cleaned = cleaned.replace("json", "", 1).strip()
 
-    # Brace-extraction fallback: handles prose before/after JSON
     if not cleaned.startswith("{"):
         try:
             start = cleaned.index("{")
@@ -109,101 +99,52 @@ def parse_json_response(raw: str | None, key: str) -> list[str]:
         return []
 
 
-# ---------------- COMPOUND SKILL EXPANDER ----------------
-def ask_llm_to_validate_parts(
-    parts: list[str],
-    model_choice: str,
-    api_key: str
-) -> list[str]:
+# ---------------- POST-PROCESSING ----------------
+def post_process_skills(skills: list[str], model_choice: str, api_key: str) -> list[str]:
     """
-    Ask the LLM which parts of a split compound skill are valid
-    standalone technical skills. Returns only the valid ones.
+    Send extracted skills back to LLM to:
+    1. Split any remaining compound entries joined by & or /
+       ONLY if each part is a valid technical skill.
+    2. Keep atomic skills like CI/CD, AI/ML intact.
+    3. Deduplicate.
     """
-    parts_json = json.dumps(parts)
+    if not skills:
+        return []
+
+    skills_json = json.dumps(skills)
 
     prompt = f"""
 You are a strict JSON generator.
 
-Given this list of terms, return only the ones that are valid, standalone
-technical skills (tools, frameworks, languages, platforms, methodologies,
-databases, cloud services, or computer science concepts).
+I have a list of technical skills. Some entries may be compound, joined by "&" or "/".
+Your job:
+1. For each skill, check if it is a compound of TWO valid technical skills joined by "&" or "/".
+   If YES → split into two separate skills.
+   If NO  → keep as-is.
 
-Exclude: generic words, soft skills, adjectives, vague nouns, non-technical terms.
+How to decide:
+- "RAG & Vector DB" → "RAG" is a valid skill, "Vector DB" is a valid skill → SPLIT → ["RAG", "Vector DB"]
+- "AWS & GCP"       → both valid → SPLIT → ["AWS", "GCP"]
+- "CI/CD"           → this is ONE atomic skill, not two → KEEP → ["CI/CD"]
+- "AI/ML"           → "AI" and "ML" are both valid → SPLIT → ["AI", "ML"]
+- "LangChain"       → single skill → KEEP → ["LangChain"]
+- "REST API"        → single skill → KEEP → ["REST API"]
+- "GitHub Actions"  → single skill → KEEP → ["GitHub Actions"]
 
-Input terms: {parts_json}
+After splitting, remove duplicates (case-insensitive).
+
+Input skills list:
+{skills_json}
 
 Return ONLY this JSON, no explanation, no markdown:
 {{
-    "valid_skills": ["term1", "term2"]
+    "skills": ["skill1", "skill2", "skill3"]
 }}
 """
 
     raw = run_llm(prompt, model_choice, api_key)
-    result = parse_json_response(raw, "valid_skills")
-
-    # Fallback: if LLM returns nothing, keep all parts
-    return result if result else parts
-
-
-def expand_compound_skills(
-    skills: list[str],
-    model_choice: str,
-    api_key: str
-) -> list[str]:
-    """
-    Split compound skill entries joined by ' & ' or ' / ' (with spaces)
-    into individual skills, using the LLM to validate each part.
-
-    Why spaces matter:
-      "RAG & Vector DB" → spaces around & → split → ["RAG", "Vector DB"]
-      "CI/CD"           → no spaces around / → kept as-is (atomic skill)
-      "AWS/GCP"         → no spaces → kept as-is (main prompt handles this)
-
-    After splitting, the LLM decides if each part is a real technical skill:
-      ["RAG", "Vector DB"] → LLM: both valid → expand to two entries
-      ["something", "vague"] → LLM: neither valid → keep original string
-    """
-    # Only match ' & ' or ' / ' with surrounding spaces
-    # This deliberately preserves "CI/CD", "AI/ML" etc. as atomic
-    splitter = re.compile(r'\s+&\s+|\s+/\s+')
-
-    expanded = []
-
-    for skill in skills:
-        parts = splitter.split(skill)
-
-        if len(parts) == 1:
-            # No compound separator found → keep as-is
-            expanded.append(skill.strip())
-            continue
-
-        # Ask LLM which parts are valid standalone technical skills
-        valid_parts = ask_llm_to_validate_parts(
-            [p.strip() for p in parts],
-            model_choice,
-            api_key
-        )
-
-        if len(valid_parts) >= 2:
-            # All/most parts are valid → split into separate skills
-            expanded.extend(valid_parts)
-        elif len(valid_parts) == 1:
-            # Only one part is valid → keep just that
-            expanded.extend(valid_parts)
-        else:
-            # LLM found nothing valid → keep original unchanged
-            expanded.append(skill.strip())
-
-    # Deduplicate while preserving insertion order
-    seen = set()
-    result = []
-    for s in expanded:
-        key = s.lower()
-        if key not in seen:
-            seen.add(key)
-            result.append(s)
-
-    return result
+    result = parse_json_response(raw, "skills")
+    return result if result else skills
 
 
 # ---------------- MAIN EXTRACTION ----------------
@@ -215,40 +156,40 @@ def extract_skills_cached(
     groq_api_key=None
 ) -> tuple[list[str], list[str]]:
     """
-    Extract skills from Resume and JD using a single LLM call.
-    Post-processes compound skills (e.g. "RAG & Vector DB") by splitting
-    them into individual valid technical skills via a second LLM validation call.
-
-    Always returns: (resume_skills_list, jd_skills_list)
+    Extract skills from Resume and JD.
+    Always returns: (resume_skills_list, jd_skills_list).
     """
 
     prompt = f"""
 You are a strict JSON generator for technical skill extraction.
 
-Rules:
-- Extract technical skills from EVERY section of the resume text:
-  Summary, Core Skills, Projects, Experience, Tools — all of it.
-- For resume bullet lines formatted as "Category · skill1, skill2, skill3",
-  extract the category concepts AND every skill listed after the dot/colon.
-  Example: "RAG & Vector DB · FAISS, Sentence Transformers, Pinecone"
-           → resume_skills must include: RAG, Vector DB, FAISS, Sentence Transformers, Pinecone
-- Normalize skills to their common short form:
-    "RAG systems"              → "RAG"
-    "LLM Integrations"        → "LLMs"
-    "Docker-based deployments" → "Docker"
-    "FAISS (vector)"           → "FAISS"
-    "REST APIs"                → "REST API"
-- Do NOT pre-split entries joined by "&" or "/" — return them as-is.
-  They will be handled in post-processing.
-  Example: "RAG & Vector DB" → return as "RAG & Vector DB" (do not split here)
-- Do NOT split naturally atomic skills:
-  "CI/CD", "GitHub Actions", "Prompt Engineering",
-  "System Design", "LangChain", "LangGraph" → keep as single entries.
-- Remove duplicates (case-insensitive).
-- Do NOT include: soft skills, years of experience, job titles,
-  company names, university names, or city names.
-- Return ONLY valid JSON in this exact format, no extra text, no markdown:
+EXTRACTION RULES:
+- Scan EVERY section: Summary, Core Skills, Projects, Experience, Tools.
+- For bullet lines like "RAG & Vector DB · FAISS, Sentence Transformers, Pinecone":
+    Step 1 - Take the category part before "·": "RAG & Vector DB"
+    Step 2 - Take every skill after "·": FAISS, Sentence Transformers, Pinecone
+    Step 3 - Add ALL of them to the skills list including "RAG & Vector DB" as-is.
+    Do NOT split "RAG & Vector DB" here — add it exactly as written.
 
+NORMALIZATION:
+- "RAG systems"               → "RAG"
+- "LLM Integrations"          → "LLMs"
+- "Docker-based deployments"  → "Docker"
+- "FAISS (vector)"            → "FAISS"
+- "REST APIs"                 → "REST API"
+
+IMPORTANT — do NOT split compound entries here:
+- "RAG & Vector DB" → add as "RAG & Vector DB" (splitting happens later)
+- "CI/CD"           → add as "CI/CD"
+- "AWS/GCP"         → add as "AWS/GCP"
+
+EXCLUSIONS:
+- No soft skills, no job titles, no company names, no city names,
+  no years of experience, no university names.
+
+Remove duplicates (case-insensitive).
+
+Return ONLY valid JSON, no markdown, no explanation:
 {{
     "resume_skills": ["Skill1", "Skill2"],
     "jd_skills": ["SkillA", "SkillB"]
@@ -267,16 +208,13 @@ Job Description:
         st.error("⚠️ LLM call failed for skill extraction.")
         return [], []
 
-    # Parse resume and JD skills from JSON response
     try:
         cleaned = raw_result.strip()
 
-        # Strip ```json ... ``` fences
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
             cleaned = cleaned.replace("json", "", 1).strip()
 
-        # Brace-extraction fallback
         if not cleaned.startswith("{"):
             start = cleaned.index("{")
             end = cleaned.rindex("}") + 1
@@ -292,9 +230,8 @@ Job Description:
         st.write("Raw output was:", raw_result)
         return [], []
 
-    # Post-process: split compound skills like "RAG & Vector DB"
-    # into ["RAG", "Vector DB"] using LLM validation (no hardcoded list)
-    resume_skills = expand_compound_skills(resume_skills, model_choice, groq_api_key)
-    jd_skills     = expand_compound_skills(jd_skills, model_choice, groq_api_key)
+    # Post-process: LLM decides which compounds to split
+    resume_skills = post_process_skills(resume_skills, model_choice, groq_api_key)
+    jd_skills     = post_process_skills(jd_skills, model_choice, groq_api_key)
 
     return resume_skills, jd_skills
