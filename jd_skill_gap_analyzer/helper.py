@@ -123,33 +123,33 @@ def generate_report(candidate_name,resume_skills, jd_skills, matched_skills, mis
 
 
 
-    pdf.set_font("Arial", "B", 13)
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Resume Skills:", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", size=10)
     pdf.multi_cell(0, 8, ", ".join(resume_skills))
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 13)
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Job Description Skills:", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", size=10)
     pdf.multi_cell(0, 8, ", ".join(jd_skills))
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 13)
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Matched Skills:", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", size=10)
     pdf.multi_cell(0, 8, ", ".join([m[0] for m in matched_skills]))
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 13)
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Missing Skills:", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", size=10)
     pdf.multi_cell(0, 8, ", ".join(missing_skills) if missing_skills else "None")
     pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 13)
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Additional Skills in Resume:", ln=True)
-    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", size=10)
     pdf.multi_cell(0, 8, ", ".join(additional_skills) if additional_skills else "None")
 
     return pdf
