@@ -27,8 +27,7 @@ except ImportError:
 
 def get_groq_key():
     return st.secrets.get("GROQ_API_KEY", None)
-# ----------------- CONFIG -----------------
-st.set_page_config(page_title="🧠 Smart Resume Skill Extractor", page_icon="🧠", layout="wide")
+
 
 # ----------------- HEADER -----------------
 

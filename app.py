@@ -7,8 +7,10 @@ import logging
 
 from langchain_core.prompts import PromptTemplate
 
-# ------------------ STREAMLIT CONFIG FIRST ------------------
+import streamlit as st
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
+
+
 
 import streamlit as st
 
@@ -70,7 +72,6 @@ except:
     st.title("AI Resume Analyzer")
 
 # ------------------ FUNCTIONS ------------------
-@st.cache_data
 def get_match_label(score):
     if score >= 80:
         return "Strong Match"
