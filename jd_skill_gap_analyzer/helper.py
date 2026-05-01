@@ -3,7 +3,6 @@ import os
 from resume_skill_extractor.skill_extractor import extract_skills_cached
 from utils.text_processing import resume_text, jd_text
 from resume_skill_extractor.resume_parser import extract_candidate_name
-from langchain_community.embeddings import OllamaEmbeddings
 import numpy as np
 import streamlit as st
 from langchain_community.embeddings import HuggingFaceEmbeddings   
@@ -13,14 +12,14 @@ sys.path.append(os.path.abspath(".."))
 # Initialize Embedding model
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+def get_embeddings():
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 
 
 def embed_skills(resume_skills, jd_skills):
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-    
+    embeddings = get_embeddings()
     """Embed each skill separately (one vector per skill)."""
     if not isinstance(resume_skills, list):
         raise ValueError("resume_skills must be a list of strings")
