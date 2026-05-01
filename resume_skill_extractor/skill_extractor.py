@@ -136,3 +136,46 @@ Job Description:
     return resume_skills, jd_skills
 
 
+# ---------------- RENDER AI EXPLANATION ----------------
+def render_ai_explanation(explanation: dict, match_score: float):
+    st.markdown("## 🤖 AI Explanation")
+    
+    # Match Level
+    st.markdown(f"**Match Level: {match_score:.1f}%**")
+    st.progress(match_score / 100)
+    st.markdown("---")
+
+    # Overall Summary
+    if explanation.get("overall_summary"):
+        st.markdown(explanation["overall_summary"])
+        st.markdown("")
+
+    # Strengths
+    if explanation.get("strengths"):
+        st.markdown("**Strengths:**")
+        for s in explanation["strengths"]:
+            st.markdown(f"- {s}")
+        st.markdown("")
+
+    # Skill Gaps
+    if explanation.get("skill_gaps"):
+        st.markdown("**Gaps:**")
+        for g in explanation["skill_gaps"]:
+            st.markdown(f"- {g}")
+        st.markdown("")
+
+    # Improvement Suggestions / Recommendation
+    if explanation.get("recommendation") or explanation.get("interview_tips"):
+        st.markdown("**Improvement Suggestions:**")
+        if explanation.get("recommendation"):
+            st.markdown(f"- {explanation['recommendation']}")
+        for tip in explanation.get("interview_tips", []):
+            st.markdown(f"- {tip}")
+        st.markdown("")
+
+    # Score Explanation
+    if explanation.get("score_explanation"):
+        st.markdown("**Score Explanation:**")
+        st.markdown(explanation["score_explanation"])
+
+    st.markdown("---")
