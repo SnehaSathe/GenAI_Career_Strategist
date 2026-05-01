@@ -191,6 +191,65 @@ def extract_skills_from_headings(resume_text: str) -> list[str]:
     return result
 
 
+# ---------------- SKILL FILTER ----------------
+def filter_skill_terms(skills: list[str]) -> list[str]:
+    """
+    Remove entries that are clearly sentences / phrases, not skill names.
+
+    A valid skill term:
+      - Is short        : ≤ 5 words
+      - Is concise      : ≤ 40 characters
+      - Has no sentence endings : doesn't end with  .  !  ?
+      - Has no sentence-like verbs at the start:
+            "Independently researched ...", "Built internal tools ...",
+            "Wrote reusable ...", "Reduced average ..."
+      - Contains no metrics/percentages used in achievement sentences:
+            "a 150x speed", "15% productivity", "30% efficiency gains"
+
+    Everything that passes all checks is kept; the rest is silently dropped.
+    """
+    # Common sentence-starting verbs found in resume achievement bullets
+    _SENTENCE_VERBS = re.compile(
+        r'^(independently|built|wrote|designed|developed|created|implemented|'
+        r'reduced|improved|increased|achieved|managed|led|collaborated|'
+        r'investigated|researched|deployed|integrated|automated|optimised|'
+        r'optimized|utilized|leveraged|delivered|established|conducted|'
+        r'performed|generated|produced|analysed|analyzed)\b',
+        re.IGNORECASE
+    )
+
+    # Metrics pattern — achievement phrases like "a 150x speed", "15% gains"
+    _METRIC_RE = re.compile(r'\d+\s*[x%]', re.IGNORECASE)
+
+    filtered = []
+    for skill in skills:
+        s = skill.strip()
+
+        # ── Rule 1: too long in characters ───────────────────────────────
+        if len(s) > 40:
+            continue
+
+        # ── Rule 2: too many words ────────────────────────────────────────
+        if len(s.split()) > 5:
+            continue
+
+        # ── Rule 3: ends like a sentence ─────────────────────────────────
+        if s.endswith(('.', '!', '?')):
+            continue
+
+        # ── Rule 4: starts with an action/sentence verb ───────────────────
+        if _SENTENCE_VERBS.match(s):
+            continue
+
+        # ── Rule 5: contains a metric (achievement phrases, not skills) ───
+        if _METRIC_RE.search(s):
+            continue
+
+        filtered.append(s)
+
+    return filtered
+
+
 # ---------------- MAIN EXTRACTION ----------------
 @st.cache_data(show_spinner=False)
 def extract_skills_cached(
@@ -301,5 +360,13 @@ Job Description:
         s for s in resume_skills_llm
         if s.lower() not in structural_lower
     ]
+
+    # ── Layer 4: Filter out sentences, metrics, achievement phrases ────────
+    # Drops entries like:
+    #   "Independently researched skill-scoring methods for resume-JD matching"
+    #   "Reduced average skill-mapping turnaround from ~20 min to <8 sec"
+    #   "a 150x speed"   "15% productivity"   "30% efficiency gains."
+    merged_resume = filter_skill_terms(merged_resume)
+    jd_skills     = filter_skill_terms(jd_skills)
 
     return merged_resume, jd_skills
