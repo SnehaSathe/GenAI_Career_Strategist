@@ -1,181 +1,150 @@
 import os
 import json
-import socket
 import requests
-import fitz  # PyMuPDF
 import streamlit as st
+import fitz  # PyMuPDF
 from langchain_community.llms import Ollama
 
 # ---------------- CONFIG ----------------
-groq_api_key = (
-    os.getenv("GROQ_API_KEY")   # first check environment variable
-    or st.secrets.get("GROQ_API_KEY")  # fallback to secrets.toml
-)
 OLLAMA_MODEL = "mistral:latest"
 
+groq_api_key = (
+    os.getenv("GROQ_API_KEY")
+    or st.secrets.get("GROQ_API_KEY", None)
+)
 
-# ---------------- ENV DETECTION ----------------
-def is_local_env():
-    """Detect if running locally (for Ollama fallback)."""
-    try:
-        host = socket.gethostname()
-        ip = socket.gethostbyname(host)
-        return ip.startswith("127.") or ip == "localhost"
-    except:
-        return False
+# ---------------- STREAMLIT UI ----------------
+st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
+st.title("🧠 AI Resume Analyzer (ATS + Skill Intelligence)")
 
+# ---------------- FILE INPUT ----------------
+resume_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
+jd_text = st.text_area("Paste Job Description")
 
-# ---------------- OLLAMA ----------------
-@st.cache_resource
-def get_ollama_client():
-    """Initialize Ollama client (cached)."""
-    return Ollama(model=OLLAMA_MODEL)
+# ---------------- EXTRACT TEXT FROM PDF ----------------
+resume_text = ""
+if resume_file:
+    doc = fitz.open(stream=resume_file.read(), filetype="pdf")
+    for page in doc:
+        resume_text += page.get_text()
 
+# ---------------- LLM PROMPT (CORE INTELLIGENCE) ----------------
+prompt = f"""
+You are an expert ATS resume analyzer and career coach.
 
-def use_ollama(prompt: str) -> str:
-    """Run prompt locally via Ollama."""
-    llm = get_ollama_client()
-    return llm.invoke(prompt)
+TASK:
+Analyze resume and job description and return ONLY valid JSON.
 
+IMPORTANT RULES:
+- Extract ONLY technical skills (not soft skills unless explicitly technical like "System Design")
+- Split combined skill strings like:
+  "Python & Backend · Python (primary), FastAPI, Flask"
+  INTO:
+  ["Python", "Backend", "FastAPI", "Flask"]
 
-# ---------------- GROQ ----------------
-def use_groq(prompt, model_choice, api_key):
-    if not api_key:
-        return None
+- Normalize skills (e.g. "PyTorch" not "pytorch framework")
+- Remove duplicates
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+- Detect:
+  1. match_level (0 to 100 float)
+  2. strengths (bullet list)
+  3. gaps (missing skills from JD)
+  4. improvements (actionable suggestions)
+  5. resume_skills (clean list)
+  6. jd_skills (clean list)
 
-    response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        json={
-            "model": model_choice,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-    )
-
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-
-    # Debugging message (optional)
-    st.error(f"Groq API error {response.status_code}: {response.text}")
-    return None
-
-
-# ---------------- MAIN EXTRACTION ----------------
-@st.cache_data(show_spinner=False)
-def extract_skills_cached(
-    resume_text: str,
-    jd_text: str,
-    model_choice: str,
-    groq_api_key=None
-) -> tuple[list[str], list[str]]:
-    """
-    Extract skills separately for Resume and JD.
-    Always returns: (resume_skills_list, jd_skills_list).
-    """
-
-    prompt = f"""
-You are a strict JSON generator.
-Extract **only technical skills** from the given texts.
-Do not include explanations or extra text.
-Return JSON only in this exact format:
+OUTPUT FORMAT (STRICT JSON ONLY):
 
 {{
-    "resume_skills": ["Skill1", "Skill2"],
-    "jd_skills": ["SkillA", "SkillB"]
+  "match_level": 0,
+  "strengths": [],
+  "gaps": [],
+  "improvements": [],
+  "resume_skills": [],
+  "jd_skills": []
 }}
 
-Resume:
+---------------- RESUME ----------------
 {resume_text}
 
-Job Description:
+---------------- JOB DESCRIPTION ----------------
 {jd_text}
 """
 
-    raw_result = None
+# ---------------- LLM CALL ----------------
+result = None
 
-    if is_local_env():
-        # Local → prefer Ollama, fallback to Groq
-        try:
-            raw_result = use_ollama(prompt)
-        except Exception:
-            raw_result = use_groq(prompt, model_choice, groq_api_key)
+if resume_text and jd_text:
+
+    if groq_api_key:
+        headers = {
+            "Authorization": f"Bearer {groq_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": "llama3-70b-8192",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ]
+            }
+        )
+
+        if response.status_code == 200:
+            result = response.json()["choices"][0]["message"]["content"]
+
     else:
-        # Cloud → always Groq
-        raw_result = use_groq(prompt, model_choice, groq_api_key)
+        llm = Ollama(model=OLLAMA_MODEL)
+        result = llm.invoke(prompt)
 
-    # Defaults
-    resume_skills, jd_skills = [], []
-
-    # Parse JSON safely
+# ---------------- CLEAN JSON PARSING ----------------
+data = {}
+if result:
     try:
-        if not raw_result:
-            return [], []
+        cleaned = result.strip()
 
-        cleaned = raw_result.strip()
-
-        # Remove ```json code blocks if present
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
-            cleaned = cleaned.replace("json", "", 1).strip()
+            cleaned = cleaned.replace("json", "").strip()
 
         data = json.loads(cleaned)
 
-        # Extract lists safely
-        resume_skills = [str(s).strip() for s in data.get("resume_skills", []) if s]
-        jd_skills = [str(s).strip() for s in data.get("jd_skills", []) if s]
-
     except Exception as e:
-        st.error(f"⚠️ JSON parsing failed: {e}")
-        st.write("Raw output was:", raw_result)
+        st.error("⚠️ Failed to parse LLM output")
+        st.write(result)
 
-    return resume_skills, jd_skills
+# ---------------- UI OUTPUT ----------------
+if data:
 
+    st.subheader("📊 Match Analysis")
 
-# ---------------- RENDER AI EXPLANATION ----------------
-def render_ai_explanation(explanation: dict, match_score: float):
-    st.markdown("## 🤖 AI Explanation")
-    
-    # Match Level
-    st.markdown(f"**Match Level: {match_score:.1f}%**")
-    st.progress(match_score / 100)
-    st.markdown("---")
+    st.metric("Match Level", f"{data.get('match_level', 0)}%")
 
-    # Overall Summary
-    if explanation.get("overall_summary"):
-        st.markdown(explanation["overall_summary"])
-        st.markdown("")
+    col1, col2 = st.columns(2)
 
-    # Strengths
-    if explanation.get("strengths"):
-        st.markdown("**Strengths:**")
-        for s in explanation["strengths"]:
-            st.markdown(f"- {s}")
-        st.markdown("")
+    with col1:
+        st.markdown("### 💪 Strengths")
+        for s in data.get("strengths", []):
+            st.write("•", s)
 
-    # Skill Gaps
-    if explanation.get("skill_gaps"):
-        st.markdown("**Gaps:**")
-        for g in explanation["skill_gaps"]:
-            st.markdown(f"- {g}")
-        st.markdown("")
+        st.markdown("### 🧠 Resume Skills")
+        st.write(", ".join(data.get("resume_skills", [])))
 
-    # Improvement Suggestions / Recommendation
-    if explanation.get("recommendation") or explanation.get("interview_tips"):
-        st.markdown("**Improvement Suggestions:**")
-        if explanation.get("recommendation"):
-            st.markdown(f"- {explanation['recommendation']}")
-        for tip in explanation.get("interview_tips", []):
-            st.markdown(f"- {tip}")
-        st.markdown("")
+    with col2:
+        st.markdown("### ⚠️ Gaps")
+        for g in data.get("gaps", []):
+            st.write("•", g)
 
-    # Score Explanation
-    if explanation.get("score_explanation"):
-        st.markdown("**Score Explanation:**")
-        st.markdown(explanation["score_explanation"])
+        st.markdown("### 🎯 JD Skills")
+        st.write(", ".join(data.get("jd_skills", [])))
 
-    st.markdown("---")
+    st.markdown("### 🚀 Improvement Suggestions")
+    for i in data.get("improvements", []):
+        st.write("•", i)
+
+# ---------------- OPTIONAL DEBUG ----------------
+else:
+    st.info("Upload resume and paste job description to start analysis.")
