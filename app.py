@@ -6,6 +6,7 @@ from io import BytesIO
 import streamlit as st
 from fpdf import FPDF
 import logging
+from langchain_core.prompts import PromptTemplate
 
 logging.getLogger("streamlit.runtime.scriptrunner").setLevel(logging.ERROR)
 
