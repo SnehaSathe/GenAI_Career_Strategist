@@ -102,6 +102,15 @@ Matched Skills: {[m[0] for m in matched_skills]}
 Missing Skills: {missing_skills}
 
 ------------------------------------------------------------
+📌 IMPORTANT RULE (VERY CRITICAL)
+------------------------------------------------------------
+If ANY skill appears in Resume Skills (including additional skills, extra skills, or indirectly mentioned skills)
+AND it also appears in Job Description Skills,
+THEN it MUST be treated as a STRENGTH.
+
+Do NOT ignore skills just because they are not in "Matched Skills" list.
+
+------------------------------------------------------------
 📌 OUTPUT FORMAT (STRICTLY FOLLOW)
 ------------------------------------------------------------
 
@@ -111,28 +120,27 @@ Summary:
 Give a 1–2 line overall evaluation of candidate-job fit.
 
 Strengths:
-- Mention strong matching skills and why they are valuable
-- Highlight technical strengths clearly
-- Focus on real job relevance
+- Include ALL skills that match job description (even from additional/extra skills)
+- Highlight technical relevance and importance
+- Combine similar skills if needed (avoid repetition)
 
 Gaps:
-- Clearly mention missing important skills
-- Be specific (tools, frameworks, experience gaps)
+- Clearly mention missing important skills from job description
+- Focus on tools, frameworks, experience gaps
 
 Improvement Suggestions:
-- Give actionable career improvement steps
-- Suggest exact skills/tools to learn
-- Suggest project ideas or experience improvements
+- Give actionable steps to improve employability
+- Suggest exact technologies to learn
+- Suggest project ideas or real-world experience improvements
 
 ------------------------------------------------------------
 📌 RULES:
 - Keep response under 120–150 words total
-- Be professional like LinkedIn recruiter feedback
-- Do NOT repeat raw lists blindly
+- Be professional and recruiter-like
 - Do NOT hallucinate new skills
-- Be clear, concise, and human-readable
+- Be strict about matching logic
 """
-
+    
     try:
         return llm.invoke(prompt).content
     except:
