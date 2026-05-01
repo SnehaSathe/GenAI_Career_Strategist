@@ -19,6 +19,8 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 def embed_skills(resume_skills, jd_skills):
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    
     """Embed each skill separately (one vector per skill)."""
     if not isinstance(resume_skills, list):
         raise ValueError("resume_skills must be a list of strings")
