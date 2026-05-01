@@ -51,7 +51,7 @@ if groq_api_key:
         pass
 model_choice="llama-3.1-8b-instant"  # default Groq model
 # ------------------ FUNCTIONS ------------------
-
+@st.cache_resource
 def get_match_label(score):
     if score >= 80:
         return "✅ Strong Match"
@@ -59,7 +59,7 @@ def get_match_label(score):
         return "⚠️ Moderate Match"
     else:
         return "❌ Low Match"
-
+@st.cache_resource
 def generate_llm_explanation(score, resume_skills, jd_skills, matched_skills, missing_skills):
     if not llm:
         return "Basic analysis only (LLM not available)."
