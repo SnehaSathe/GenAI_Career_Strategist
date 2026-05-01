@@ -178,12 +178,11 @@ if st.button("Analyze"):
                 explanation=explanation   # IMPORTANT
             )
 
-            pdf.output(pdf_buffer)
-            pdf_buffer.seek(0)
+            pdf_bytes = pdf.output(dest='S').encode('latin-1')   
 
             st.download_button(
                 "Download Report",
-                data=pdf_buffer,
+                data=pdf_bytes,
                 file_name="resume_report.pdf",
                 mime="application/pdf"
             )

@@ -1,12 +1,12 @@
 import sys
 import os
 from resume_skill_extractor.skill_extractor import extract_skills_cached
-from resume_skill_extractor.app import resume_text, jd_text
+from utils.text_processing import resume_text, jd_text
 from resume_skill_extractor.resume_parser import extract_candidate_name
 from langchain_community.embeddings import OllamaEmbeddings
 import numpy as np
 import streamlit as st
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings   
 from fpdf import FPDF
 sys.path.append(os.path.abspath("..")) 
 
