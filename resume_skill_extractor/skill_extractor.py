@@ -79,85 +79,57 @@ def extract_skills_cached(
     """
 
     prompt = f"""
-You are an advanced AI Resume Matching and Skill Analysis system.
+You are an expert AI Resume Evaluator and ATS (Applicant Tracking System) Analyst.
 
-Your job is to analyze a Resume and Job Description and return:
-1. Extracted skills
-2. Match percentage
-3. ATS-style explanation (Strengths, Gaps, Suggestions)
+Your task is to compare a RESUME with a JOB DESCRIPTION and generate a professional hiring analysis.
 
-⚠️ STRICT RULES:
-- Return ONLY valid JSON
-- No markdown, no explanation outside JSON
-- Do NOT hallucinate skills or experience
-- Only use information present in the text
+⚠️ RULES:
+- Be strict but fair.
+- Do NOT hallucinate skills or experience.
+- Base everything ONLY on given text.
+- Do NOT include JSON. Return ONLY structured readable text.
+- Works for ALL domains (Data Science, AI, Software, Marketing, Finance, etc.)
 
-----------------------------------------
-📌 OUTPUT FORMAT (STRICT JSON):
-{
-    "resume_skills": ["Skill1", "Skill2"],
-    "jd_skills": ["SkillA", "SkillB"],
-    "match_level": "85%",
-    "ai_explanation": "Full ATS-style paragraph explanation",
-    "strengths": ["Point1", "Point2"],
-    "gaps": ["Gap1", "Gap2"],
-    "improvement_suggestions": ["Suggestion1", "Suggestion2"]
-}
+------------------------------------------------------------
+📊 OUTPUT FORMAT (STRICTLY FOLLOW THIS FORMAT)
+------------------------------------------------------------
 
-----------------------------------------
-📌 MATCH LEVEL RULES:
-- Compare overlap between resume_skills and jd_skills
-- High overlap → 80–100%
-- Medium overlap → 50–79%
-- Low overlap → below 50%
+Match Level: <percentage>%
 
-----------------------------------------
-📌 AI EXPLANATION FORMAT (VERY IMPORTANT):
-Write in this style (single paragraph):
+Summary:
+Write 1–2 lines explaining overall match between resume and job description.
 
-Example:
-"The candidate shows strong alignment with the job description with solid technical expertise in core Python and data analysis tools. However, there are gaps in domain-specific experience and missing exposure to certain required technologies."
+Strengths:
+- Bullet 1
+- Bullet 2
+- Bullet 3
 
-----------------------------------------
-📌 STRENGTHS RULES:
-- Highlight matched skills strongly
-- Focus on technical skills only
-- Mention libraries, tools, frameworks
+Gaps:
+- Bullet 1
+- Bullet 2
+- Bullet 3
 
-Example:
-- Python, Pandas, NumPy, Scikit-learn
-- Data visualization tools like Matplotlib and Power BI
+Improvement Suggestions:
+- Bullet 1
+- Bullet 2
+- Bullet 3
 
-----------------------------------------
-📌 GAPS RULES:
-- Mention missing skills from JD
-- Mention missing experience or tools
+------------------------------------------------------------
+📌 MATCH SCORE RULE:
+- 0–40% = low match
+- 41–70% = moderate match
+- 71–90% = good match
+- 91–100% = excellent match
 
-Example:
-- No mention of web development skills like HTML/CSS
-- Limited exposure to deployment or cloud tools
+------------------------------------------------------------
+📌 EVALUATION RULES:
 
-----------------------------------------
-📌 IMPROVEMENT SUGGESTIONS:
-- Actionable advice
-- Skill-based improvement only
-- No generic advice only
+1. Strengths = skills, tools, experience that MATCH JD
+2. Gaps = missing skills, missing tools, missing experience
+3. Suggestions = actionable career improvement tips
+4. Always include technical + soft skills if relevant
 
-Example:
-- Add real-world projects using Python and ML
-- Learn deployment tools like Docker or AWS
-- Improve frontend basics if required by JD
-
-----------------------------------------
-📌 SKILL EXTRACTION RULES:
-- Extract from bullet points, dots (·), commas, brackets
-- Split grouped skills:
-  "Python & Backend · Python, FastAPI, Flask"
-  → ["Python", "Backend", "FastAPI", "Flask"]
-
-- Normalize skills (Python = python = PYTHON)
-
-----------------------------------------
+------------------------------------------------------------
 📄 RESUME:
 {resume_text}
 
