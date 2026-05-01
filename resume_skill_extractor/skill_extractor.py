@@ -99,87 +99,14 @@ def parse_json_response(raw: str | None, key: str) -> list[str]:
         return []
 
 
-# ---------------- BULLET PREPROCESSOR ----------------
-def extract_bullet_skills(resume_text: str) -> list[str]:
-    """
-    Parses resume bullet lines of the pattern:
-        "Category & SubCategory · skill1, skill2, skill3"
-
-    For each such line:
-      - Splits the CATEGORY part on ' & ' → individual category skills
-      - Splits the SKILLS part on ',' → individual skills
-      - Returns ALL of them as a flat list
-
-    Example:
-      "RAG & Vector DB · FAISS, Sentence Transformers, Pinecone"
-      → ["RAG", "Vector DB", "FAISS", "Sentence Transformers", "Pinecone"]
-
-      "AI/ML & GenAI · AI/ML Model Support, Generative AI"
-      → ["AI/ML", "GenAI", "AI/ML Model Support", "Generative AI"]
-
-      "Cloud & DevOps · Azure, Docker, GitHub"
-      → ["Cloud", "DevOps", "Azure", "Docker", "GitHub"]
-    """
-    extracted = []
-
-    # Match lines with the · separator (handles both · and the ASCII middot)
-    # Pattern: <anything> · <anything>
-    bullet_pattern = re.compile(r'(.+?)\s*[·•]\s*(.+)')
-
-    for line in resume_text.splitlines():
-        line = line.strip()
-        # Strip leading bullet characters
-        line = re.sub(r'^[\-\*•▪▸►]\s*', '', line)
-
-        match = bullet_pattern.match(line)
-        if not match:
-            continue
-
-        category_part = match.group(1).strip()
-        skills_part   = match.group(2).strip()
-
-        # Remove bold markdown if present (**text**)
-        category_part = re.sub(r'\*+', '', category_part).strip()
-
-        # Split category on ' & ' to get individual category-level skills
-        # e.g. "RAG & Vector DB" → ["RAG", "Vector DB"]
-        category_skills = [
-            c.strip()
-            for c in re.split(r'\s*&\s*', category_part)
-            if c.strip()
-        ]
-
-        # Split skills part on ',' to get individual skills
-        # e.g. "FAISS, Sentence Transformers, Pinecone" → ["FAISS", ...]
-        inline_skills = [
-            s.strip()
-            for s in skills_part.split(',')
-            if s.strip()
-        ]
-
-        extracted.extend(category_skills)
-        extracted.extend(inline_skills)
-
-    # Deduplicate preserving order
-    seen = set()
-    result = []
-    for s in extracted:
-        key = s.lower()
-        if key not in seen:
-            seen.add(key)
-            result.append(s)
-
-    return result
-
-
 # ---------------- POST-PROCESSING ----------------
 def post_process_skills(skills: list[str], model_choice: str, api_key: str) -> list[str]:
     """
-    Send extracted skills to LLM to:
-    1. Keep only valid technical skills.
-    2. Split any remaining compound entries (e.g. "RAG & Vector DB") if both parts are valid.
-    3. Normalize to canonical short forms.
-    4. Deduplicate.
+    Send extracted skills back to LLM to:
+    1. Split any remaining compound entries joined by & or /
+       ONLY if each part is a valid technical skill.
+    2. Keep atomic skills like CI/CD, AI/ML intact.
+    3. Deduplicate.
     """
     if not skills:
         return []
@@ -187,30 +114,26 @@ def post_process_skills(skills: list[str], model_choice: str, api_key: str) -> l
     skills_json = json.dumps(skills)
 
     prompt = f"""
-You are a strict JSON generator for technical skill validation and normalization.
+You are a strict JSON generator.
 
-Given this list of raw extracted terms, do the following:
-1. Keep only valid technical skills (tools, frameworks, languages, platforms,
-   databases, cloud services, ML/AI concepts, CS methodologies).
-2. Remove non-technical terms (generic words, soft skills, adjectives, vague nouns).
-3. Split compound entries joined by "&" ONLY if BOTH parts are valid technical skills:
-   - "RAG & Vector DB"  → both valid → ["RAG", "Vector DB"]
-   - "Cloud & DevOps"   → both valid → ["Cloud", "DevOps"]
-   - "AI & GenAI"       → both valid → ["AI", "GenAI"]
-4. Keep atomic skills intact:
-   - "CI/CD"           → keep as "CI/CD"
-   - "GitHub Actions"  → keep as "GitHub Actions"
-   - "REST API"        → keep as "REST API"
-   - "LangChain"       → keep as "LangChain"
-5. Normalize:
-   - "RAG systems"              → "RAG"
-   - "LLM Integrations"        → "LLMs"
-   - "Docker-based deployments" → "Docker"
-   - "FAISS (vector)"           → "FAISS"
-   - "Groq LLMs"               → "Groq"
-6. Remove duplicates (case-insensitive).
+I have a list of technical skills. Some entries may be compound, joined by "&" or "/".
+Your job:
+1. For each skill, check if it is a compound of TWO valid technical skills joined by "&" or "/".
+   If YES → split into two separate skills.
+   If NO  → keep as-is.
 
-Input terms:
+How to decide:
+- "RAG & Vector DB" → "RAG" is a valid skill, "Vector DB" is a valid skill → SPLIT → ["RAG", "Vector DB"]
+- "AWS & GCP"       → both valid → SPLIT → ["AWS", "GCP"]
+- "CI/CD"           → this is ONE atomic skill, not two → KEEP → ["CI/CD"]
+- "AI/ML"           → "AI" and "ML" are both valid → SPLIT → ["AI", "ML"]
+- "LangChain"       → single skill → KEEP → ["LangChain"]
+- "REST API"        → single skill → KEEP → ["REST API"]
+- "GitHub Actions"  → single skill → KEEP → ["GitHub Actions"]
+
+After splitting, remove duplicates (case-insensitive).
+
+Input skills list:
 {skills_json}
 
 Return ONLY this JSON, no explanation, no markdown:
@@ -237,33 +160,34 @@ def extract_skills_cached(
     Always returns: (resume_skills_list, jd_skills_list).
     """
 
-    # Step 1: Rule-based bullet parsing — guarantees "RAG & Vector DB"
-    # category headers are always captured, no LLM hallucination risk
-    bullet_skills = extract_bullet_skills(resume_text)
-
-    # Step 2: LLM extracts skills from full text (catches skills in
-    # summary, project descriptions, experience bullets etc.)
     prompt = f"""
 You are a strict JSON generator for technical skill extraction.
 
 EXTRACTION RULES:
 - Scan EVERY section: Summary, Core Skills, Projects, Experience, Tools.
-- Extract every individual technical skill mentioned anywhere.
-- For bullet lines like "Category · skill1, skill2": extract ALL skills
-  listed after the · separator.
-- Normalize:
-    "RAG systems"               → "RAG"
-    "LLM Integrations"          → "LLMs"
-    "Docker-based deployments"  → "Docker"
-    "FAISS (vector)"            → "FAISS"
-    "REST APIs"                 → "REST API"
-    "Groq LLMs"                 → "Groq"
-- Keep atomic compound skills intact:
-    "CI/CD", "GitHub Actions", "Prompt Engineering",
-    "System Design", "LangChain", "LangGraph" → single entries.
-- Remove duplicates (case-insensitive).
-- Exclude: soft skills, job titles, company names, city names,
-  university names, years of experience.
+- For bullet lines like "RAG & Vector DB · FAISS, Sentence Transformers, Pinecone":
+    Step 1 - Take the category part before "·": "RAG & Vector DB"
+    Step 2 - Take every skill after "·": FAISS, Sentence Transformers, Pinecone
+    Step 3 - Add ALL of them to the skills list including "RAG & Vector DB" as-is.
+    Do NOT split "RAG & Vector DB" here — add it exactly as written.
+
+NORMALIZATION:
+- "RAG systems"               → "RAG"
+- "LLM Integrations"          → "LLMs"
+- "Docker-based deployments"  → "Docker"
+- "FAISS (vector)"            → "FAISS"
+- "REST APIs"                 → "REST API"
+
+IMPORTANT — do NOT split compound entries here:
+- "RAG & Vector DB" → add as "RAG & Vector DB" (splitting happens later)
+- "CI/CD"           → add as "CI/CD"
+- "AWS/GCP"         → add as "AWS/GCP"
+
+EXCLUSIONS:
+- No soft skills, no job titles, no company names, no city names,
+  no years of experience, no university names.
+
+Remove duplicates (case-insensitive).
 
 Return ONLY valid JSON, no markdown, no explanation:
 {{
@@ -298,23 +222,16 @@ Job Description:
 
         data = json.loads(cleaned)
 
-        resume_skills_llm = [str(s).strip() for s in data.get("resume_skills", []) if s]
-        jd_skills         = [str(s).strip() for s in data.get("jd_skills", []) if s]
+        resume_skills = [str(s).strip() for s in data.get("resume_skills", []) if s]
+        jd_skills     = [str(s).strip() for s in data.get("jd_skills", []) if s]
 
     except Exception as e:
         st.error(f"⚠️ JSON parsing failed: {e}")
         st.write("Raw output was:", raw_result)
         return [], []
 
-    # Step 3: Merge bullet-parsed skills with LLM-extracted skills
-    # bullet_skills guarantees category headers like "RAG", "Vector DB" are present
-    merged_resume = bullet_skills + [
-        s for s in resume_skills_llm
-        if s.lower() not in {b.lower() for b in bullet_skills}
-    ]
-
-    # Step 4: Post-process both lists — validate, normalize, deduplicate
-    resume_skills = post_process_skills(merged_resume, model_choice, groq_api_key)
+    # Post-process: LLM decides which compounds to split
+    resume_skills = post_process_skills(resume_skills, model_choice, groq_api_key)
     jd_skills     = post_process_skills(jd_skills, model_choice, groq_api_key)
 
     return resume_skills, jd_skills
