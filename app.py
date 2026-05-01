@@ -11,10 +11,18 @@ from langchain_core.prompts import PromptTemplate
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
 
 # ------------------ SAFE SECRETS HANDLING ------------------
-groq_api_key = st.secrets.get("GROQ_API_KEY", None)
+import streamlit as st
 
-if not groq_api_key:
-    st.error("❌ GROQ API Key not found in Streamlit Secrets")
+def get_secret_key():
+    try:
+        return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        return None
+
+groq_api_key = get_secret_key()
+
+if groq_api_key is None or groq_api_key.strip() == "":
+    st.error("❌ GROQ API Key missing. Add it in Streamlit Secrets.")
     st.stop()
 
 # ------------------ PATH SETUP ------------------
