@@ -17,13 +17,18 @@ if PARENT_DIR not in sys.path:
 
 # Try relative import first (works for package/module run)
 try:
-    from .resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached,extract_text
-    from .skill_extractor import extract_skills_cached
+    from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached,extract_text
+    from resume_skill_extractor.skill_extractor import extract_skills_cached
 except ImportError:
     # Fallback to absolute import (works for script run)
     from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached , extract_text_from_docx_cached,extract_text
     from resume_skill_extractor.skill_extractor import extract_skills_cached
     
+
+groq_api_key = st.secrets.get("GROQ_API_KEY", None)
+
+if groq_api_key is None:
+    raise ValueError("GROQ API Key not found")
 
 # ----------------- CONFIG -----------------
 st.set_page_config(page_title="🧠 Smart Resume Skill Extractor", page_icon="🧠", layout="wide")

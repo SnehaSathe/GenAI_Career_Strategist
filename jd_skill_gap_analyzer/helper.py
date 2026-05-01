@@ -11,7 +11,8 @@ from fpdf import FPDF
 sys.path.append(os.path.abspath("..")) 
 
 # Initialize Embedding model
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")   # default llama2
+from langchain_community.embeddings import OllamaEmbeddings
+embeddings = OllamaEmbeddings(model="nomic-embed-text")  # default llama2
 
 
 

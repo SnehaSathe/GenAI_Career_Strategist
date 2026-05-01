@@ -16,8 +16,8 @@ if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 
 try:
-    from .resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached
-    from .skill_extractor import extract_skills_cached
+    from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached
+    from resume_skill_extractor.skill_extractor import extract_skills_cached
 except ImportError:
     from resume_skill_extractor.resume_parser import extract_text_from_pdf_cached, extract_text_from_docx_cached
     from resume_skill_extractor.skill_extractor import extract_skills_cached
