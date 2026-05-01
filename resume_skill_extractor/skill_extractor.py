@@ -79,21 +79,82 @@ def extract_skills_cached(
     """
 
     prompt = f"""
-You are a strict JSON generator.
-Extract **only technical skills** from the given texts.
-Do not include explanations or extra text.
-Return JSON only in this exact format:
+You are an advanced UNIVERSAL Resume Skill Extraction AI.
 
-{{
-    "resume_skills": ["Skill1", "Skill2"],
-    "jd_skills": ["SkillA", "SkillB"]
-}}
+Your job is to extract ONLY valid technical skills from:
+- Resume
+- Job Description
 
-Resume:
+This works for ALL domains:
+IT, AI/ML, Data Science, Web Development, Pharmacy, Healthcare, Finance, Marketing, Engineering, etc.
+
+------------------------------------------------------------
+📌 CRITICAL EXTRACTION RULES
+------------------------------------------------------------
+
+1. Extract skills from ALL formats:
+   - Bullet points: ♦, •, -, *
+   - Section headers: "Python & Backend ·", "AI/ML & GenAI ·"
+   - Comma-separated lists
+   - Brackets ( )
+   - Pipelines or dot-separated skills
+   - Job roles or tool mentions inside sentences
+
+2. IMPORTANT RULE:
+   If a bullet point or heading contains technical terms, SPLIT them into individual skills.
+
+   Example:
+   "♦ Python & Backend ·"
+   → ["Python", "Backend"]
+
+   "♦ AI/ML & GenAI ·"
+   → ["AI", "ML", "GenAI"]
+
+   "Python, FastAPI, Flask"
+   → ["Python", "FastAPI", "Flask"]
+
+3. REMOVE non-skill words:
+   - experienced, familiar, knowledge, basic, advanced, primary, worked on
+
+4. KEEP ONLY REAL TECHNICAL SKILLS:
+   - Programming languages
+   - Frameworks
+   - Tools
+   - Libraries
+   - Cloud platforms
+   - AI/ML/NLP concepts
+   - Databases
+   - Software/tools used in industry
+
+5. DO NOT extract soft skills unless explicitly technical (e.g., "Agile", "DevOps" allowed)
+
+6. Normalize skills:
+   - python → Python
+   - ai → AI
+   - ml → ML
+   - gen ai → GenAI
+   - machine learning → Machine Learning
+
+------------------------------------------------------------
+📌 OUTPUT FORMAT (STRICT JSON ONLY)
+------------------------------------------------------------
+
+Return ONLY valid JSON:
+
+{
+    "resume_skills": ["Skill1", "Skill2", "Skill3"],
+    "jd_skills": ["SkillA", "SkillB", "SkillC"]
+}
+
+NO explanations. NO markdown. NO extra text.
+
+------------------------------------------------------------
+📄 RESUME:
 {resume_text}
 
-Job Description:
+📄 JOB DESCRIPTION:
 {jd_text}
+"""
 """
 
     raw_result = None
