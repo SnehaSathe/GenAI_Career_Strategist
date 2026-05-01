@@ -22,9 +22,25 @@ def get_secret_key():
 
 groq_api_key = get_secret_key()
 
-if groq_api_key is None or groq_api_key.strip() == "":
-    st.error("❌ GROQ API Key missing. Add it in Streamlit Secrets.")
+from langchain_groq import ChatGroq
+
+groq_api_key = st.secrets.get("GROQ_API_KEY")
+
+if not groq_api_key:
+    st.error("❌ GROQ API Key missing in secrets")
     st.stop()
+
+try:
+    llm = ChatGroq(
+        api_key=groq_api_key,
+        model="llama-3.1-8b-instant"
+    )
+except Exception as e:
+    st.error(f"❌ LLM init failed: {e}")
+    llm = None
+
+st.write("Groq key loaded:", bool(groq_api_key))
+st.write("LLM object:", llm)
 
 # ------------------ PATH SETUP ------------------
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
