@@ -5,12 +5,18 @@ import streamlit as st
 import docx  # python-docx
 import re
 # --- Load spaCy ---
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+import spacy
+import streamlit as st
+
+@st.cache_resource
+def load_nlp():
+    try:
+        return spacy.load("en_core_web_sm")
+    except:
+        # safe fallback (no install, avoids cloud crash)
+        return spacy.blank("en")
+
+nlp = load_nlp()
 
 # --- PDF Extraction ---
 @st.cache_data
