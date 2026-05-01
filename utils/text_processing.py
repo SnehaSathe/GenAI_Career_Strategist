@@ -25,11 +25,8 @@ except ImportError:
     from resume_skill_extractor.skill_extractor import extract_skills_cached
     
 
-groq_api_key = st.secrets.get("GROQ_API_KEY", None)
-
-if groq_api_key is None:
-    raise ValueError("GROQ API Key not found")
-
+def get_groq_key():
+    return st.secrets.get("GROQ_API_KEY", None)
 # ----------------- CONFIG -----------------
 st.set_page_config(page_title="🧠 Smart Resume Skill Extractor", page_icon="🧠", layout="wide")
 
