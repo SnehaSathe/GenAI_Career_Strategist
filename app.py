@@ -7,12 +7,12 @@ import logging
 
 from langchain_core.prompts import PromptTemplate
 
-import streamlit as st
+
 st.set_page_config(page_title="AI Resume Analyzer", layout="wide")
 
+st.cache_data.clear()
+st.cache_resource.clear()
 
-
-import streamlit as st
 
 def get_secret_key():
     try:

@@ -29,18 +29,6 @@ def get_groq_key():
     return st.secrets.get("GROQ_API_KEY", None)
 
 
-# ----------------- HEADER -----------------
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-image_path = os.path.join(BASE_DIR, "logo.png")  # logo in main folder
-
-# --- Read image in binary and encode as base64 ---
-with open(image_path, "rb") as f:
-    data = f.read()
-
-
-
-
 
 
 # ----------------- INPUT SECTION -----------------
