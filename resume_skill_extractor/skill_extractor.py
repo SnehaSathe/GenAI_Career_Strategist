@@ -155,7 +155,7 @@ NO explanations. NO markdown. NO extra text.
 📄 JOB DESCRIPTION:
 {jd_text}
 """
-"""
+
 
     raw_result = None
 
