@@ -79,44 +79,86 @@ def extract_skills_cached(
     """
 
     prompt = f"""
-You are an advanced AI Resume & Job Description Skill Extractor.
+You are an advanced AI Resume Matching and Skill Analysis system.
 
-Your task:
-Extract ONLY technical skills from Resume and Job Description separately.
+Your job is to analyze a Resume and Job Description and return:
+1. Extracted skills
+2. Match percentage
+3. ATS-style explanation (Strengths, Gaps, Suggestions)
 
-⚠️ IMPORTANT RULES:
-- Return ONLY valid JSON. No explanation, no markdown, no extra text.
-- Do NOT hallucinate skills.
-- Extract real skills only if explicitly or clearly implied.
-- Normalize skills (e.g., "python", "Python" → "Python").
+⚠️ STRICT RULES:
+- Return ONLY valid JSON
+- No markdown, no explanation outside JSON
+- Do NOT hallucinate skills or experience
+- Only use information present in the text
 
-📌 CRITICAL SKILL EXTRACTION RULES:
-1. Extract skills from:
-   - Bullet points (•, -, *)
-   - Dot separators (·)
-   - Comma-separated lists
-   - Brackets and grouped skills
-   - Phrases like "Python & Backend · Python (primary), FastAPI, Flask"
-   - Sections like Skills, Technologies, Tools, Tech Stack
+----------------------------------------
+📌 OUTPUT FORMAT (STRICT JSON):
+{
+    "resume_skills": ["Skill1", "Skill2"],
+    "jd_skills": ["SkillA", "SkillB"],
+    "match_level": "85%",
+    "ai_explanation": "Full ATS-style paragraph explanation",
+    "strengths": ["Point1", "Point2"],
+    "gaps": ["Gap1", "Gap2"],
+    "improvement_suggestions": ["Suggestion1", "Suggestion2"]
+}
 
-2. IMPORTANT: SPLIT COMPOUND SKILL LINES INTO ATOMIC SKILLS
-   Example:
-   "Python & Backend · Python (primary), FastAPI, Flask, REST APIs"
-   → ["Python", "FastAPI", "Flask", "REST APIs", "Backend"]
+----------------------------------------
+📌 MATCH LEVEL RULES:
+- Compare overlap between resume_skills and jd_skills
+- High overlap → 80–100%
+- Medium overlap → 50–79%
+- Low overlap → below 50%
 
-3. Remove duplicates and irrelevant words like:
-   - primary, basic, advanced, familiar with, experience in
+----------------------------------------
+📌 AI EXPLANATION FORMAT (VERY IMPORTANT):
+Write in this style (single paragraph):
 
-4. Keep ONLY technical skills:
-   (Programming languages, frameworks, tools, libraries, databases, cloud, ML, AI tools)
+Example:
+"The candidate shows strong alignment with the job description with solid technical expertise in core Python and data analysis tools. However, there are gaps in domain-specific experience and missing exposure to certain required technologies."
 
-🚨 OUTPUT FORMAT (STRICT JSON ONLY):
-{{
-    "resume_skills": ["Skill1", "Skill2", "Skill3"],
-    "jd_skills": ["SkillA", "SkillB", "SkillC"]
-}}
+----------------------------------------
+📌 STRENGTHS RULES:
+- Highlight matched skills strongly
+- Focus on technical skills only
+- Mention libraries, tools, frameworks
 
-📄 RESUME TEXT:
+Example:
+- Python, Pandas, NumPy, Scikit-learn
+- Data visualization tools like Matplotlib and Power BI
+
+----------------------------------------
+📌 GAPS RULES:
+- Mention missing skills from JD
+- Mention missing experience or tools
+
+Example:
+- No mention of web development skills like HTML/CSS
+- Limited exposure to deployment or cloud tools
+
+----------------------------------------
+📌 IMPROVEMENT SUGGESTIONS:
+- Actionable advice
+- Skill-based improvement only
+- No generic advice only
+
+Example:
+- Add real-world projects using Python and ML
+- Learn deployment tools like Docker or AWS
+- Improve frontend basics if required by JD
+
+----------------------------------------
+📌 SKILL EXTRACTION RULES:
+- Extract from bullet points, dots (·), commas, brackets
+- Split grouped skills:
+  "Python & Backend · Python, FastAPI, Flask"
+  → ["Python", "Backend", "FastAPI", "Flask"]
+
+- Normalize skills (Python = python = PYTHON)
+
+----------------------------------------
+📄 RESUME:
 {resume_text}
 
 📄 JOB DESCRIPTION:
