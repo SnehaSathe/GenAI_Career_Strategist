@@ -81,59 +81,36 @@ def extract_skills_cached(
     prompt = f"""
 You are an advanced UNIVERSAL Resume Skill Extraction AI.
 
-Your job is to extract ONLY valid technical skills from:
-- Resume
-- Job Description
+Your job is to extract ONLY technical skills from:
+Resume and Job Description.
 
-This works for ALL domains:
-IT, AI/ML, Data Science, Web Development, Pharmacy, Healthcare, Finance, Marketing, Engineering, etc.
+Works for ALL domains: IT, AI/ML, Data Science, Pharmacy, Marketing, Finance, etc.
 
 ------------------------------------------------------------
-📌 CRITICAL EXTRACTION RULES
+📌 RULES
 ------------------------------------------------------------
 
-1. Extract skills from ALL formats:
-   - Bullet points: ♦, •, -, *
-   - Section headers: "Python & Backend ·", "AI/ML & GenAI ·"
-   - Comma-separated lists
-   - Brackets ( )
-   - Pipelines or dot-separated skills
-   - Job roles or tool mentions inside sentences
+1. Extract skills from:
+- Bullet points (♦, •, -, *)
+- Headers like "Python & Backend ·", "AI/ML & GenAI ·"
+- Comma-separated lists
+- Text inside sentences
 
-2. IMPORTANT RULE:
-   If a bullet point or heading contains technical terms, SPLIT them into individual skills.
+2. Split grouped skills:
+Example:
+"♦ Python & Backend · FastAPI, Flask"
+→ Python, Backend, FastAPI, Flask
 
-   Example:
-   "♦ Python & Backend ·"
-   → ["Python", "Backend"]
+"♦ AI/ML & GenAI ·"
+→ AI, ML, GenAI
 
-   "♦ AI/ML & GenAI ·"
-   → ["AI", "ML", "GenAI"]
+3. Normalize skills:
+python → Python
+ai → AI
+ml → ML
+gen ai → GenAI
 
-   "Python, FastAPI, Flask"
-   → ["Python", "FastAPI", "Flask"]
-
-3. REMOVE non-skill words:
-   - experienced, familiar, knowledge, basic, advanced, primary, worked on
-
-4. KEEP ONLY REAL TECHNICAL SKILLS:
-   - Programming languages
-   - Frameworks
-   - Tools
-   - Libraries
-   - Cloud platforms
-   - AI/ML/NLP concepts
-   - Databases
-   - Software/tools used in industry
-
-5. DO NOT extract soft skills unless explicitly technical (e.g., "Agile", "DevOps" allowed)
-
-6. Normalize skills:
-   - python → Python
-   - ai → AI
-   - ml → ML
-   - gen ai → GenAI
-   - machine learning → Machine Learning
+4. Keep ONLY technical skills.
 
 ------------------------------------------------------------
 📌 OUTPUT FORMAT (STRICT JSON ONLY)
@@ -141,18 +118,18 @@ IT, AI/ML, Data Science, Web Development, Pharmacy, Healthcare, Finance, Marketi
 
 Return ONLY valid JSON:
 
-{
-    "resume_skills": ["Skill1", "Skill2", "Skill3"],
-    "jd_skills": ["SkillA", "SkillB", "SkillC"]
-}
+{{
+    "resume_skills": ["Skill1", "Skill2"],
+    "jd_skills": ["SkillA", "SkillB"]
+}}
 
-NO explanations. NO markdown. NO extra text.
+NO explanations. NO markdown.
 
 ------------------------------------------------------------
-📄 RESUME:
+Resume:
 {resume_text}
 
-📄 JOB DESCRIPTION:
+Job Description:
 {jd_text}
 """
     
